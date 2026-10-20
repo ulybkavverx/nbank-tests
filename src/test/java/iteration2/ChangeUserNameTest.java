@@ -1,75 +1,73 @@
 package iteration2;
 
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
+import iteration1.BaseTest;
+import models.ChangeUserNameRequest;
+import models.ChangeUserNameResponse;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import requests.ChangeUserNameRequester;
+import specs.RequestSpecs;
+import specs.ResponseSpecs;
 
-import static io.restassured.RestAssured.given;
+import java.util.stream.Stream;
 
-public class ChangeUserNameTest {
-    private static final String BASE_URL = "http://localhost:4111";
+// наследование от BaseTest, чтобы использовать мягкие проверки softly
+public class ChangeUserNameTest extends BaseTest {
 
-    // данные пользователя
+    // данные юзера для авторизации
     private final String username = "kate0000";
     private final String password = "KateKate12!!";
 
-    // Токен авторизации
-    private String auth;
+    // позитивный тест: проверка успешное изменение имени
+    @Test
+    public void userCanChangeNameWithCorrectData() {
 
-    @BeforeAll
-    public static void setupRestAssured() {
-        RestAssured.baseURI = BASE_URL;
-    }
+        // создание тела запроса с новым именем
+        ChangeUserNameRequest request = ChangeUserNameRequest.builder()
+                .name("Bob Joy")
+                .build();
 
-    @BeforeEach
-    public void setup() {
-        auth = login(username, password);
-    }
-
-    // авторизация пользователя
-    private String login(String username, String password) {
-        return given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                        "username": "%s",
-                        "password": "%s"
-                        }
-                        """.formatted(username, password))
-                .post("/api/v1/auth/login")
-                .then()
-                .statusCode(200)
+        // отправка запроса и преобразование JSON -> Java-объект
+        ChangeUserNameResponse response = new ChangeUserNameRequester(
+                // авторизация юзера
+                RequestSpecs.authAsUser(username, password),
+                // ожидание статус код 200
+                ResponseSpecs.requestReturnsOK()
+        ).post(request)
                 .extract()
-                .header("Authorization");
+                .as(ChangeUserNameResponse.class);
+
+        // проверка, что сервер вернул новое имя
+        softly.assertThat(response.getCustomer().getName()).isEqualTo(request.getName());
     }
 
-    // проверка изменения имени
-    @ParameterizedTest
-    @CsvSource({
-            "Bob Joy, 200",
-            "Bob, 400",
-            "Bob Joy Bob, 400",
-            "Bob1 Joy, 400",
-            "Bob! Joy, 400",
-            "BobJoy, 400",
-            "'', 400"
-    })
+    // источник тестовых данных для негативных проверок
+    public static Stream<Arguments> invalidNames() {
+        return Stream.of(
+                Arguments.of("Bob", 400),
+                Arguments.of("Bob Joy Bob", 400),
+                Arguments.of("Bob1 Joy", 400),
+                Arguments.of("Bob! Joy", 400),
+                Arguments.of("BobJoy", 400),
+                Arguments.of("", 400)
+        );
+    }
 
-    public void changeNameTest(String name, int statusCode) {
-        given()
-                .header("Authorization", auth)
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                        "name": "%s"
-                        }
-                        """.formatted(name))
-                .put("/api/v1/customer/profile")
-                .then()
-                .log().all()
-                .statusCode(statusCode);
+    @ParameterizedTest
+    @MethodSource("invalidNames")
+    public void userCannotChangeNameWithInvalidData(String name, int expectedStatusCode) {
+
+        // создание запрос с именем из набора тестовых данных
+        ChangeUserNameRequest request = ChangeUserNameRequest.builder()
+                .name(name)
+                .build();
+
+        // отправка запроса и проверка ожид результата
+        new ChangeUserNameRequester(
+                RequestSpecs.authAsUser(username, password),
+                ResponseSpecs.requestReturnsStatusCode(expectedStatusCode)
+        ).post(request);
     }
 }

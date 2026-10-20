@@ -1,229 +1,142 @@
 package iteration2;
 
-import io.restassured.RestAssured;
-import io.restassured.filter.log.RequestLoggingFilter;
-import io.restassured.filter.log.ResponseLoggingFilter;
-import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeAll;
+import io.restassured.specification.RequestSpecification;
+import iteration1.BaseTest;
+import models.Account;
+import models.DepositMoneyRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import requests.AccountRequester;
+import requests.DepositMoneyRequester;
+import specs.RequestSpecs;
+import specs.ResponseSpecs;
 
-import java.util.List;
+import static org.assertj.core.api.Assertions.within;
 
-import static io.restassured.RestAssured.given;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-public class DepositMoneyTest {
-    @BeforeAll
-    public static void setupRestAssured() {
-        RestAssured.filters(
-                List.of(new RequestLoggingFilter(),
-                        new ResponseLoggingFilter()));
-    }
+public class DepositMoneyTest extends BaseTest {
 
     // данные пользователя kate0000
     private final String username = "kate0000";
     private final String password = "KateKate12!!";
 
-    // хранение Authorization после логина
-    private String auth;
+    // настройки запросов авторизованного юзера
+    private RequestSpecification userRequestSpecification;
 
+    // перед каждым тестом авторизация юзера
     @BeforeEach
     public void setup() {
-        auth = login();
+        userRequestSpecification = RequestSpecs.authAsUser(username, password);
     }
 
-    // авторизация пользователя kate0000
-    private String login() {
-        // данные пользователя
-        return given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                        "username": "%s",
-                        "password": "%s"
-                        }
-                        """.formatted(username, password))
-                .post("http://localhost:4111/api/v1/auth/login")
-                .then()
-                .statusCode(200)
-                .extract()
-                .header("Authorization");
+    // получение акк текущего юзера
+    private Account getCurrentAccount() {
+        return new AccountRequester(
+                userRequestSpecification,
+                ResponseSpecs.requestReturnsOK()
+        ).getAccounts().getFirst();
     }
 
-    // получение id аккаунта пользователя
-    private int getUserId() {
-        return given()
-                .header("Authorization", auth)
-                .get("http://localhost:4111/api/v1/customer/accounts")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("[0].id");
+    // пополнение акка
+    private void makeDeposit(int accountID, double amount, int expectedStatusCode) {
+        new DepositMoneyRequester(
+                userRequestSpecification,
+                ResponseSpecs.requestReturnsStatusCode(expectedStatusCode)
+        ).post(
+                DepositMoneyRequest.builder()
+                        .id(accountID)
+                        .balance(amount)
+                        .build()
+        );
     }
 
-    // получение текущего баланса пользователя
-    private Float getBalance() {
-        return given()
-                .header("Authorization", auth)
-                .get("http://localhost:4111/api/v1/customer/accounts")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("[0].balance");
-    }
-
-    // выполнение депозита
-    private void makeDeposit(int userId, double amount) {
-        given()
-                .contentType(ContentType.JSON)
-                .header("Authorization", auth)
-                .body("""
-                        {
-                        "id": %d,
-                        "balance": %s
-                        }
-                        """.formatted(userId, amount))
-                .post("http://localhost:4111/api/v1/accounts/deposit")
-                .then()
-                .statusCode(200);
-    }
-
-    // ТС - 01, 02, 03, 04, 05 - положительные тесты
+    // ТС 01-05: успешное пополнение допустимыми суммами
     @ParameterizedTest
     @ValueSource(doubles = {100, 1, 0.01, 4999.99, 5000})
     public void positiveDepositMoneyTest(double amount) {
-        int userId = getUserId();
 
-        Float balanceBefore = getBalance();
+        // акк до пополнения
+        Account accountBefore = getCurrentAccount();
+        double balanceBefore = accountBefore.getBalance();
 
-        makeDeposit(userId, amount);
+        // пополнение акка с ожид статусом 200
+        makeDeposit(accountBefore.getId(), amount, 200);
 
-        Float balanceAfter = getBalance();
+        // получение баланса после пополнения
+        double balanceAfter = getCurrentAccount().getBalance();
 
-        assertEquals(balanceBefore + amount, balanceAfter, 0.001);
+        // проверка, что баланс увеличился на сумму пополнения
+        softly.assertThat(balanceAfter).isCloseTo(balanceBefore + amount, within(0.001));
     }
 
-    // ТС - 06, 07, 08, 09 - негативные тесты
+    // TC 06–09: пополнение недопустимыми суммами
     @ParameterizedTest
     @ValueSource(doubles = {5000.01, 5001, 0, -1})
     public void negativeDepositMoneyTest(double amount) {
-        int userId = getUserId();
+        Account accountBefore = getCurrentAccount();
+        double balanceBefore = accountBefore.getBalance();
 
-        Float balanceBefore = getBalance();
+        // ожид сервер отклонит запрос, ожид статус 400
+        makeDeposit(accountBefore.getId(), amount, 400);
 
-        given()
-                .contentType(ContentType.JSON)
-                .header("Authorization", auth)
-                .body("""
-                        {
-                        "id": %d,
-                        "balance": %s
-                        }
-                        """.formatted(userId, amount))
-                .post("http://localhost:4111/api/v1/accounts/deposit")
-                .then()
-                .statusCode(400);
+        // проверка, что баланс не изменился
+        double balanceAfter = getCurrentAccount().getBalance();
 
-        Float balanceAfter = getBalance();
-
-        assertEquals(balanceBefore, balanceAfter, 0.001);
+        softly.assertThat(balanceAfter).isCloseTo(balanceBefore, within(0.001));
     }
 
-    // ТС - 10 - Депозит в чужой аккаунт
+    // ТС 10: попытка депозита в чужой аккаунт
     @Test
     public void depositToAnotherUserAccountTest() {
         // авторизация второго пользователя petya345
-        String authB = given()
-                .contentType(ContentType.JSON)
-                .body("""
-                        {
-                        "username": "petya345",
-                        "password": "PetyaPetya123!"
-                        }
-                        """)
-                .post("http://localhost:4111/api/v1/auth/login")
-                .then()
-                .statusCode(200)
-                .extract()
-                .header("Authorization");
+        RequestSpecification anotherUserRequestSpec =
+                RequestSpecs.authAsUser(
+                        "petya345",
+                        "PetyaPetya123!"
+                );
 
-        // получение id аккаунта пользователя petya345
-        int accountBId = given()
-                .header("Authorization", authB)
-                .get("http://localhost:4111/api/v1/customer/accounts")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("[0].id");
+        AccountRequester anotherUserAccountRequester =
+                new AccountRequester(
+                        anotherUserRequestSpec,
+                        ResponseSpecs.requestReturnsOK()
+                );
 
+        // получение аккаунта второго пользователя petya345
+        Account anotherUserAccount =
+                anotherUserAccountRequester.getAccounts().getFirst();
 
-        // баланс пользователя petya345 ДО депозита
-        Float balanceBefore = given()
-                .header("Authorization", authB)
-                .get("http://localhost:4111/api/v1/customer/accounts")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("[0].balance");
+        double balanceBefore = anotherUserAccount.getBalance();
 
-
-        // попытка пользователя kate0000 сделать депозит на аккаунт пользователя petya345
-        given()
-                .contentType(ContentType.JSON)
-                .header("Authorization", auth)
-                .body("""
-                        {
-                        "id": %d
-                        "balance": 100
-                        }
-                        """.formatted(accountBId))
-                .post("http://localhost:4111/api/v1/accounts/deposit")
-                .then()
-                .statusCode(400);
+        // попытка пополнить чужой баланс от имени первого юзера
+        makeDeposit(anotherUserAccount.getId(), 100, 400); // тест падает, тк в ответе нужен 403 код
 
         // баланс пользователя petya345 ПОСЛЕ попытки депозита
-        Float balanceAfter = given()
-                .header("Authorization", authB)
-                .get("http://localhost:4111/api/v1/customer/accounts")
-                .then()
-                .statusCode(200)
-                .extract()
-                .path("[0].balance");
+        double balanceAfter =
+                anotherUserAccountRequester.getAccounts()
+                        .getFirst()
+                        .getBalance();
 
         // проверка, что баланс пользователя petya345 не изменился
-        assertEquals(balanceBefore, balanceAfter);
+        softly.assertThat(balanceAfter).isCloseTo(balanceBefore, within(0.001));
     }
 
-    // ТС - 11 - Депозит в несуществующий аккаунт
+    // ТС 11: попытка депозита в несуществующий аккаунт
     @Test
     public void depositToNonExistingAccountTest() {
-        // баланс пользователя kate0000 до попытки депозита в несуществующий аккаунт
-        Float balanceBefore = getBalance();
+        Account accountBefore = getCurrentAccount();
+        double balanceBefore = accountBefore.getBalance();
 
         // несуществующий аккаунт
         int nonExistAccountId = 999999;
 
         // пользователь kate0000 пытается сделать депозит в несуществующий аккаунт
-        given()
-                .contentType(ContentType.JSON)
-                .header("Authorization", auth)
-                .body("""
-                        {
-                        "id": %d
-                        "balance": 100
-                        }
-                        """.formatted(nonExistAccountId))
-                .post("http://localhost:4111/api/v1/accounts/deposit")
-                .then()
-                .statusCode(400);
+        makeDeposit(nonExistAccountId, 100, 400); // тест падает, тк в ответе нужен 403 код
 
         // баланс пользователя kate0000 после депозита
-        Float balanceAfter = getBalance();
+        double balanceAfter = getCurrentAccount().getBalance();
 
         // проверка, что баланс не изменился
-        assertEquals(balanceBefore, balanceAfter);
+        softly.assertThat(balanceAfter).isCloseTo(balanceBefore, within(0.001));
     }
 }

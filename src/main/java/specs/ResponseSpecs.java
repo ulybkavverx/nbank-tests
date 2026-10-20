@@ -31,4 +31,10 @@ public class ResponseSpecs {
                 .expectBody(errorKey, Matchers.equalTo(errorValue))
                 .build();
     }
+
+    public static ResponseSpecification requestReturnsStatusCode(int statusCode) {
+        return defaultResponseBuilder()
+                .expectStatusCode(statusCode)
+                .build();
+    }
 }
