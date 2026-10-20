@@ -1,69 +1,34 @@
 package iteration1;
 
-import io.restassured.RestAssured;
-import io.restassured.filter.log.RequestLoggingFilter;
-import io.restassured.filter.log.ResponseLoggingFilter;
-import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeAll;
+import generators.RandomData;
+import models.CreateUserRequest;
+import models.UserRole;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
-import static io.restassured.RestAssured.given;
+import requests.AdminCreateUserRequester;
+import requests.CreateAccountRequester;
+import specs.RequestSpecs;
+import specs.ResponseSpecs;
 
 public class CreateAccountTest {
-    @BeforeAll
-    public static void setupRestAssured() {
-        RestAssured.filters(
-                List.of(new RequestLoggingFilter(),
-                        new ResponseLoggingFilter()));
-    }
 
     @Test
     public void userCanCreateAccountTest() {
+        CreateUserRequest userRequest = CreateUserRequest.builder()
+                .username(RandomData.getUserName())
+                .password(RandomData.getPassword())
+                .role(UserRole.USER.toString())
+                .build();
+
         // создание пользователя
-        given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .header("Authorization", "Basic YWRtaW46YWRtaW4=")
-                .body("""
-                        {
-                        "username": "kate2000111",
-                        "password": "Kate2000#",
-                        "role": "USER"
-                        }
-                        """)
-                .post("http://localhost:4111/api/v1/admin/users")
-                .then()
-                .assertThat()
-                .statusCode(201);
+        new AdminCreateUserRequester(
+                RequestSpecs.adminSpec(),
+                ResponseSpecs.entityWasCreated())
+                .post(userRequest);
 
-        // получаем токен юзера
-        String userAuthHeader = given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .body("""
-                        {
-                        "username": "kate2000111",
-                        "password": "Kate2000#"
-                        }
-                        """)
-                .post("http://localhost:4111/api/v1/auth/login")
-                .then()
-                .assertThat()
-                .statusCode(200)
-                .extract()
-                .header("Authorization");
 
-        // создание аккаунта(счет)
-        given()
-                .header("Authorization", userAuthHeader)
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .post("http://localhost:4111/api/v1/accounts")
-                .then()
-                .assertThat()
-                .statusCode(201);
+        new CreateAccountRequester(RequestSpecs.authAsUser(userRequest.getUsername(), userRequest.getPassword()),
+                ResponseSpecs.entityWasCreated())
+                .post(null);
 
         // запросить все аккаунты пользователя и проверить, что наш аккаунт там
     }
