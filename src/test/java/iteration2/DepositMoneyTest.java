@@ -1,9 +1,11 @@
 package iteration2;
 
+import generators.RandomData;
 import io.restassured.specification.RequestSpecification;
 import iteration1.BaseTest;
 import models.Account;
 import models.DepositMoneyRequest;
+import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -61,7 +63,7 @@ public class DepositMoneyTest extends BaseTest {
         double balanceBefore = accountBefore.getBalance();
 
         // пополнение акка с ожид статусом 200
-        makeDeposit(accountBefore.getId(), amount, 200);
+        makeDeposit(accountBefore.getId(), amount, HttpStatus.SC_OK);
 
         // получение баланса после пополнения
         double balanceAfter = getCurrentAccount().getBalance();
@@ -108,8 +110,11 @@ public class DepositMoneyTest extends BaseTest {
 
         double balanceBefore = anotherUserAccount.getBalance();
 
+        // генерация допустимой суммы депозита
+        double amount = RandomData.randomDepositAmount();
+
         // попытка пополнить чужой баланс от имени первого юзера
-        makeDeposit(anotherUserAccount.getId(), 100, 400); // тест падает, тк в ответе нужен 403 код
+        makeDeposit(anotherUserAccount.getId(), amount, HttpStatus.SC_FORBIDDEN);
 
         // баланс пользователя petya345 ПОСЛЕ попытки депозита
         double balanceAfter =
@@ -128,7 +133,7 @@ public class DepositMoneyTest extends BaseTest {
         double balanceBefore = accountBefore.getBalance();
 
         // несуществующий аккаунт
-        int nonExistAccountId = 999999;
+        int nonExistAccountId = RandomData.getNonExistingAccountID();
 
         // пользователь kate0000 пытается сделать депозит в несуществующий аккаунт
         makeDeposit(nonExistAccountId, 100, 400); // тест падает, тк в ответе нужен 403 код

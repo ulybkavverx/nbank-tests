@@ -4,6 +4,7 @@ import io.restassured.specification.RequestSpecification;
 import iteration1.BaseTest;
 import models.Account;
 import models.TransferMoneyRequest;
+import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -63,10 +64,10 @@ public class TransferMoneyTest extends BaseTest {
                 .isLessThanOrEqualTo(0.01);
     }
 
-    // ТС 12-14: Положительные тесты, положительная сумма
+    // ТС 12-16: Успешный перевод граничных сумм
     @ParameterizedTest
-    @ValueSource(doubles = {100, 1, 0.01})
-    public void successfulTransferPositiveAmountTest(double amount) {
+    @ValueSource(doubles = {100, 1, 0.01, 9999.99, 10_000})
+    public void successfulTransferBoundaryAmountTest(double amount) {
 
         // Первый аккаунт отправителя и второй аккаунт получателя
         Account senderBefore = getAccount(senderRequestSpecification, 0);
@@ -76,7 +77,7 @@ public class TransferMoneyTest extends BaseTest {
         double receiverBalanceBefore = receiverBefore.getBalance();
 
         // трансфер
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 200);
+        transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
         // получение балансов обоих юзеров после трансфера
         double senderBalanceAfter = getAccount(senderRequestSpecification, 0).getBalance();
@@ -87,53 +88,7 @@ public class TransferMoneyTest extends BaseTest {
         assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore + amount, "Баланс получателя после перевода");
     }
 
-    // ТС 15: Перевод максимально допустимой положительной суммы
-    @Test
-    public void positiveTransferMaxPositiveAmount() {
-        Account senderBefore = getAccount(senderRequestSpecification, 0);
-        Account receiverBefore = getAccount(receiverRequestSpecification, 1);
-
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
-
-        double amount = 10000;
-
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 200);
-
-        double senderBalanceAfter =
-                getAccount(senderRequestSpecification, 0).getBalance();
-
-        double receiverBalanceAfter =
-                getAccount(receiverRequestSpecification, 1).getBalance();
-
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore - amount, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore + amount, "Баланс получателя после перевода");
-    }
-
-    // ТС 16: Перевод суммы чуть меньше максимальной
-    @Test
-    public void positiveTransferSlightlyLessThanMaxPositiveAmount() {
-        Account senderBefore = getAccount(senderRequestSpecification, 0);
-        Account receiverBefore = getAccount(receiverRequestSpecification, 1);
-
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
-
-        double amount = 9999.99;
-
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 200);
-
-        double senderBalanceAfter =
-                getAccount(senderRequestSpecification, 0).getBalance();
-
-        double receiverBalanceAfter =
-                getAccount(receiverRequestSpecification, 1).getBalance();
-
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore - amount, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore + amount, "Баланс получателя после перевода");
-    }
-
-    // ТС 17-20: Негативные тесты, невалидная сумма
+    // ТС 17-20: Негативные тесты, невалидные граничные суммы
     @ParameterizedTest
     @ValueSource(doubles = {10001, 10000.01, 0, -1})
     public void invalidTransferTest(double amount) {
@@ -143,7 +98,7 @@ public class TransferMoneyTest extends BaseTest {
         double senderBalanceBefore = senderBefore.getBalance();
         double receiverBalanceBefore = receiverBefore.getBalance();
 
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 400);
+        transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_BAD_REQUEST);
 
         double senderBalanceAfter =
                 getAccount(senderRequestSpecification, 0).getBalance();
@@ -166,9 +121,9 @@ public class TransferMoneyTest extends BaseTest {
         double senderBalanceBefore = senderBefore.getBalance();
         double receiverBalanceBefore = receiverBefore.getBalance();
 
-        double amount = 5000;
+        double amount = senderBalanceBefore;
 
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 200);
+        transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
         double senderBalanceAfter =
                 getAccount(senderRequestSpecification, 0).getBalance();
@@ -191,7 +146,7 @@ public class TransferMoneyTest extends BaseTest {
 
         double amount = senderBalanceBefore + 1;
 
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 400);
+        transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_BAD_REQUEST);
 
         double senderBalanceAfter =
                 getAccount(senderRequestSpecification, 0).getBalance();
@@ -215,7 +170,7 @@ public class TransferMoneyTest extends BaseTest {
 
         double amount = 100;
 
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 200);
+        transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
         double senderBalanceAfter =
                 getAccount(senderRequestSpecification, 1).getBalance();
@@ -239,7 +194,7 @@ public class TransferMoneyTest extends BaseTest {
 
         double amount = 100;
 
-        transfer(senderBefore.getId(), receiverBefore.getId(), amount, 200);
+        transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
         double senderBalanceAfter =
                 getAccount(senderRequestSpecification, 1).getBalance();
