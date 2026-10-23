@@ -80,7 +80,7 @@ public class DepositMoneyTest extends BaseTest {
         double balanceBefore = accountBefore.getBalance();
 
         // ожид сервер отклонит запрос, ожид статус 400
-        makeDeposit(accountBefore.getId(), amount, 400);
+        makeDeposit(accountBefore.getId(), amount, HttpStatus.SC_BAD_REQUEST);
 
         // проверка, что баланс не изменился
         double balanceAfter = getCurrentAccount().getBalance();
@@ -136,7 +136,7 @@ public class DepositMoneyTest extends BaseTest {
         int nonExistAccountId = RandomData.getNonExistingAccountID();
 
         // пользователь kate0000 пытается сделать депозит в несуществующий аккаунт
-        makeDeposit(nonExistAccountId, 100, 400); // тест падает, тк в ответе нужен 403 код
+        makeDeposit(nonExistAccountId, 100, HttpStatus.SC_FORBIDDEN);
 
         // баланс пользователя kate0000 после депозита
         double balanceAfter = getCurrentAccount().getBalance();
