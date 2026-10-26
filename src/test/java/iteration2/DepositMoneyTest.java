@@ -1,69 +1,74 @@
 package iteration2;
 
 import generators.RandomData;
-import io.restassured.specification.RequestSpecification;
 import iteration1.BaseTest;
 import models.Account;
-import models.DepositMoneyRequest;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.AccountRequester;
-import requests.DepositMoneyRequester;
-import specs.RequestSpecs;
-import specs.ResponseSpecs;
+import requests.steps.UserSteps;
 
 import static org.assertj.core.api.Assertions.within;
 
 public class DepositMoneyTest extends BaseTest {
 
-    // данные пользователя kate0000
-    private final String username = "kate0000";
-    private final String password = "KateKate12!!";
+    // данные пользователя, от имени которого выполняются сценарии
+    private static final String USERNAME = "kate0000";
+    private static final String PASSWORD = "KateKate12!!";
 
-    // настройки запросов авторизованного юзера
-    private RequestSpecification userRequestSpecification;
+    private UserSteps userSteps;
 
-    // перед каждым тестом авторизация юзера
     @BeforeEach
-    public void setup() {
-        userRequestSpecification = RequestSpecs.authAsUser(username, password);
+    public void setUp() {
+        userSteps = new UserSteps(USERNAME, PASSWORD);
     }
 
     // получение акк текущего юзера
     private Account getCurrentAccount() {
-        return new AccountRequester(
-                userRequestSpecification,
-                ResponseSpecs.requestReturnsOK()
-        ).getAccounts().getFirst();
+        return userSteps.getAccounts().getFirst();
     }
 
-    // пополнение акка
-    private void makeDeposit(int accountID, double amount, int expectedStatusCode) {
-        new DepositMoneyRequester(
-                userRequestSpecification,
-                ResponseSpecs.requestReturnsStatusCode(expectedStatusCode)
-        ).post(
-                DepositMoneyRequest.builder()
-                        .id(accountID)
-                        .balance(amount)
-                        .build()
+    // ТС 02-05: успешное пополнение обычной суммы
+    @Test
+    public void positiveDepositMoneyRandomAmountTest() {
+        // акк до пополнения
+        Account accountBefore = getCurrentAccount();
+        double balanceBefore = accountBefore.getBalance();
+
+        // генерация новой допустимой суммы
+        double amount = RandomData.randomNonBoundaryDepositAmount();
+
+        // пополнение акка
+        userSteps.depositMoney(
+                accountBefore.getId(),
+                amount,
+                HttpStatus.SC_OK
         );
+
+        // получение баланса после пополнения
+        double balanceAfter = getCurrentAccount().getBalance();
+
+        // проверка, что баланс увеличился на сумму пополнения
+        softly.assertThat(balanceAfter).isCloseTo(balanceBefore + amount, within(0.001));
     }
 
-    // ТС 01-05: успешное пополнение допустимыми суммами
+    // ТС 02-05: успешное пополнение допустимыми суммами
     @ParameterizedTest
-    @ValueSource(doubles = {100, 1, 0.01, 4999.99, 5000})
-    public void positiveDepositMoneyTest(double amount) {
+    @ValueSource(doubles = {1, 0.01, 4999.99, 5000})
+    public void positiveDepositMoneyBoundaryTest(double amount) {
 
         // акк до пополнения
         Account accountBefore = getCurrentAccount();
         double balanceBefore = accountBefore.getBalance();
 
         // пополнение акка с ожид статусом 200
-        makeDeposit(accountBefore.getId(), amount, HttpStatus.SC_OK);
+        userSteps.depositMoney(
+                accountBefore.getId(),
+                amount,
+                HttpStatus.SC_OK
+        );
 
         // получение баланса после пополнения
         double balanceAfter = getCurrentAccount().getBalance();
@@ -75,12 +80,16 @@ public class DepositMoneyTest extends BaseTest {
     // TC 06–09: пополнение недопустимыми суммами
     @ParameterizedTest
     @ValueSource(doubles = {5000.01, 5001, 0, -1})
-    public void negativeDepositMoneyTest(double amount) {
+    public void depositMoneyWithInvalidAmountTest(double amount) {
         Account accountBefore = getCurrentAccount();
         double balanceBefore = accountBefore.getBalance();
 
         // ожид сервер отклонит запрос, ожид статус 400
-        makeDeposit(accountBefore.getId(), amount, HttpStatus.SC_BAD_REQUEST);
+        userSteps.depositMoney(
+                accountBefore.getId(),
+                amount,
+                HttpStatus.SC_BAD_REQUEST
+        );
 
         // проверка, что баланс не изменился
         double balanceAfter = getCurrentAccount().getBalance();
@@ -92,33 +101,25 @@ public class DepositMoneyTest extends BaseTest {
     @Test
     public void depositToAnotherUserAccountTest() {
         // авторизация второго пользователя petya345
-        RequestSpecification anotherUserRequestSpec =
-                RequestSpecs.authAsUser(
-                        "petya345",
-                        "PetyaPetya123!"
-                );
-
-        AccountRequester anotherUserAccountRequester =
-                new AccountRequester(
-                        anotherUserRequestSpec,
-                        ResponseSpecs.requestReturnsOK()
-                );
+        UserSteps anotherUserSteps = new UserSteps("petya345", "PetyaPetya123!");
 
         // получение аккаунта второго пользователя petya345
-        Account anotherUserAccount =
-                anotherUserAccountRequester.getAccounts().getFirst();
-
+        Account anotherUserAccount = anotherUserSteps.getAccounts().getFirst();
         double balanceBefore = anotherUserAccount.getBalance();
 
         // генерация допустимой суммы депозита
         double amount = RandomData.randomDepositAmount();
 
         // попытка пополнить чужой баланс от имени первого юзера
-        makeDeposit(anotherUserAccount.getId(), amount, HttpStatus.SC_FORBIDDEN);
+        userSteps.depositMoney(
+                anotherUserAccount.getId(),
+                amount,
+                HttpStatus.SC_FORBIDDEN
+        );
 
         // баланс пользователя petya345 ПОСЛЕ попытки депозита
         double balanceAfter =
-                anotherUserAccountRequester.getAccounts()
+                anotherUserSteps.getAccounts()
                         .getFirst()
                         .getBalance();
 
@@ -132,11 +133,18 @@ public class DepositMoneyTest extends BaseTest {
         Account accountBefore = getCurrentAccount();
         double balanceBefore = accountBefore.getBalance();
 
-        // несуществующий аккаунт
+        // генерация несуществующ акка
         int nonExistAccountId = RandomData.getNonExistingAccountID();
 
+        // генерация случайной допуст суммы
+        double amount = RandomData.randomDepositAmount();
+
         // пользователь kate0000 пытается сделать депозит в несуществующий аккаунт
-        makeDeposit(nonExistAccountId, 100, HttpStatus.SC_FORBIDDEN);
+        userSteps.depositMoney(
+                nonExistAccountId,
+                amount,
+                HttpStatus.SC_FORBIDDEN
+        );
 
         // баланс пользователя kate0000 после депозита
         double balanceAfter = getCurrentAccount().getBalance();

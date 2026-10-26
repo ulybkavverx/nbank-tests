@@ -1,6 +1,6 @@
-package models;
-
-public enum UserRole {
-    USER,
-    ADMIN
-}
+//package models;
+//
+//public enum UserRole {
+//    USER,
+//    ADMIN
+//}

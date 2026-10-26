@@ -22,7 +22,7 @@ public class AccountRequester {
     public List<Account> getAccounts() {
         return given()
                 .spec(requestSpecification)
-                .get("/api/v1/customer/accounts")
+                .get("/customer/accounts")
                 .then()
                 .assertThat()
                 .spec(responseSpecification)

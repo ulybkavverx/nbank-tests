@@ -1,59 +1,58 @@
 package iteration2;
 
-import io.restassured.specification.RequestSpecification;
+import generators.RandomData;
 import iteration1.BaseTest;
 import models.Account;
-import models.TransferMoneyRequest;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.AccountRequester;
-import requests.TransferMoneyRequester;
-import specs.RequestSpecs;
-import specs.ResponseSpecs;
+import requests.steps.UserSteps;
 
 public class TransferMoneyTest extends BaseTest {
 
     // данные пользователя-отправителя
-    private final String username = "kate0000";
-    private final String password = "KateKate12!!";
+    private static final String SENDER_USERNAME = "kate0000";
+    private static final String SENDER_PASSWORD = "KateKate12!!";
 
     // данные пользователя-получателя
-    private final String usernameB = "kate19981";
-    private final String passwordB = "KateTest19981!";
+    private static final String RECEIVER_USERNAME = "kate19981";
+    private static final String RECEIVER_PASSWORD = "KateTest19981!";
 
-    // настройки запросов обоих пользователей
-    private RequestSpecification senderRequestSpecification;
-    private RequestSpecification receiverRequestSpecification;
+    // шаги для отправителя и получателя перевода
+    private UserSteps senderSteps;
+    private UserSteps receiverSteps;
 
-    // авторизация обоих юзеров перед каждым тестом
+    // создание авторизованных шагов для обоих юзеров
     @BeforeEach
-    public void setup() {
-        senderRequestSpecification = RequestSpecs.authAsUser(username, password);
-        receiverRequestSpecification = RequestSpecs.authAsUser(usernameB, passwordB);
+    public void setUp() {
+        senderSteps = new UserSteps(SENDER_USERNAME, SENDER_PASSWORD);
+        receiverSteps = new UserSteps(RECEIVER_USERNAME, RECEIVER_PASSWORD);
     }
 
-    // получение аккаунта пользователя по индексу
-    private Account getAccount(RequestSpecification requestSpecification, int accountIdx) {
-        return new AccountRequester(
-                requestSpecification,
-                ResponseSpecs.requestReturnsOK()
-        ).getAccounts().get(accountIdx);
+    // получение акка пользователя по его индексу в списке
+    private Account getAccount(UserSteps userSteps, int accountIdx) {
+        return userSteps.getAccounts().get(accountIdx);
     }
 
-    // выполнение перевода и проверка ожид результата
+    // получение акка пользователя по его id, чтобы после перевода проверить именно тот же счет
+    private Account getAccountById(UserSteps userSteps, int accountId) {
+        return userSteps.getAccounts().stream()
+                .filter(account -> account.getId() == accountId)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "Аккаунт с ID: " + accountId + " не найден"
+                ));
+    }
+
+    // выполнение перевода от имени отправителя
     private void transfer(int senderAccountId, int receiverAccountId, double amount, int expectedStatusCode) {
-        new TransferMoneyRequester(
-                senderRequestSpecification,
-                ResponseSpecs.requestReturnsStatusCode(expectedStatusCode)
-        ).post(
-                TransferMoneyRequest.builder()
-                        .senderAccountId(senderAccountId)
-                        .receiverAccountId(receiverAccountId)
-                        .amount(amount)
-                        .build()
+        senderSteps.transferMoney(
+                senderAccountId,
+                receiverAccountId,
+                amount,
+                expectedStatusCode
         );
     }
 
@@ -64,145 +63,165 @@ public class TransferMoneyTest extends BaseTest {
                 .isLessThanOrEqualTo(0.01);
     }
 
-    // ТС 12-16: Успешный перевод граничных сумм
-    @ParameterizedTest
-    @ValueSource(doubles = {100, 1, 0.01, 9999.99, 10_000})
-    public void successfulTransferBoundaryAmountTest(double amount) {
+    // проверка, что после успешного перевода деньги списались со счета отправителя, добавились на счет получателя
+    private void assertSuccessfulTransferBalances(
+            UserSteps senderUser,
+            Account senderBefore,
+            UserSteps receiverUser,
+            Account receiverBefore,
+            double amount
+    ) {
+        double senderBalanceAfter = getAccountById(senderUser, senderBefore.getId()).getBalance();
+        double receiverBalanceAfter = getAccountById(receiverUser, receiverBefore.getId()).getBalance();
 
-        // Первый аккаунт отправителя и второй аккаунт получателя
-        Account senderBefore = getAccount(senderRequestSpecification, 0);
-        Account receiverBefore = getAccount(receiverRequestSpecification, 1);
+        assertBalanceEquals(
+                senderBalanceAfter,
+                senderBefore.getBalance() - amount,
+                "Баланс отправителя после перевода"
+        );
 
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
+        assertBalanceEquals(
+                receiverBalanceAfter,
+                receiverBefore.getBalance() + amount,
+                "Баланс получателя после перевода"
+        );
+    }
 
-        // трансфер
+    // проверка, что отклоненный перевод не изменил балансы счетов
+    private void assertBalancesUnchanged(
+            UserSteps senderUser,
+            Account senderBefore,
+            UserSteps receiverUser,
+            Account receiverBefore
+    ) {
+        double senderBalanceAfter = getAccountById(senderUser, senderBefore.getId()).getBalance();
+        double receiverBalanceAfter = getAccountById(receiverUser, receiverBefore.getId()).getBalance();
+
+        assertBalanceEquals(
+                senderBalanceAfter,
+                senderBefore.getBalance(),
+                "Баланс отправителя после отклонённого перевода"
+        );
+
+        assertBalanceEquals(
+                receiverBalanceAfter,
+                receiverBefore.getBalance(),
+                "Баланс получателя после отклонённого перевода"
+        );
+    }
+
+    // ТС 12: успешное пополнение обычной суммы
+    @Test
+    public void successfulTransferRegularAmountTest() {
+        Account senderBefore = getAccount(senderSteps, 0);
+        Account receiverBefore = getAccount(receiverSteps, 1);
+
+        double amount = RandomData.randomNonBoundaryTransferAmount();
+
         transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
-        // получение балансов обоих юзеров после трансфера
-        double senderBalanceAfter = getAccount(senderRequestSpecification, 0).getBalance();
-        double receiverBalanceAfter = getAccount(receiverRequestSpecification, 1).getBalance();
+        assertSuccessfulTransferBalances(
+                senderSteps, senderBefore,
+                receiverSteps, receiverBefore,
+                amount
+        );
+    }
 
-        // проверка, что у отправителя списалась ожид сумма, у получателя зачислилась ожид сумма
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore - amount, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore + amount, "Баланс получателя после перевода");
+    // ТС 13-16: Успешный перевод граничных сумм
+    @ParameterizedTest
+    @ValueSource(doubles = {1, 0.01, 9999.99, 10_000})
+    public void successfulTransferBoundaryAmountTest(double amount) {
+        Account senderBefore = getAccount(senderSteps, 0);
+        Account receiverBefore = getAccount(receiverSteps, 1);
+
+        transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
+
+        assertSuccessfulTransferBalances(
+                senderSteps, senderBefore,
+                receiverSteps, receiverBefore,
+                amount
+        );
     }
 
     // ТС 17-20: Негативные тесты, невалидные граничные суммы
     @ParameterizedTest
     @ValueSource(doubles = {10001, 10000.01, 0, -1})
     public void invalidTransferTest(double amount) {
-        Account senderBefore = getAccount(senderRequestSpecification, 0);
-        Account receiverBefore = getAccount(receiverRequestSpecification, 1);
-
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
+        Account senderBefore = getAccount(senderSteps, 0);
+        Account receiverBefore = getAccount(receiverSteps, 1);
 
         transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_BAD_REQUEST);
 
-        double senderBalanceAfter =
-                getAccount(senderRequestSpecification, 0).getBalance();
-
-        double receiverBalanceAfter =
-                getAccount(receiverRequestSpecification, 1).getBalance();
-
-        // при отклонненом переводе балансы не должны измениться
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore, "Баланс получателя после перевода");
-
+        assertBalancesUnchanged(
+                senderSteps, senderBefore,
+                receiverSteps, receiverBefore
+        );
     }
 
     // ТС 21: Перевод суммы, равной балансу отправителя
     @Test
     public void transferAmountEqualSendersBalance() {
-        Account senderBefore = getAccount(senderRequestSpecification, 0);
-        Account receiverBefore = getAccount(receiverRequestSpecification, 1);
+        Account senderBefore = getAccount(senderSteps, 0);
+        Account receiverBefore = getAccount(receiverSteps, 1);
 
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
-
-        double amount = senderBalanceBefore;
+        double amount = senderBefore.getBalance();
 
         transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
-        double senderBalanceAfter =
-                getAccount(senderRequestSpecification, 0).getBalance();
-
-        double receiverBalanceAfter =
-                getAccount(receiverRequestSpecification, 1).getBalance();
-
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore - amount, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore + amount, "Баланс получателя после перевода");
+        assertSuccessfulTransferBalances(
+                senderSteps, senderBefore,
+                receiverSteps, receiverBefore,
+                amount
+        );
     }
 
     // ТС 22: Перевод суммы больше баланса отправителя
     @Test
     public void negativeTransferMoreThanBalanceTest() {
-        Account senderBefore = getAccount(senderRequestSpecification, 0);
-        Account receiverBefore = getAccount(receiverRequestSpecification, 1);
+        Account senderBefore = getAccount(senderSteps, 0);
+        Account receiverBefore = getAccount(receiverSteps, 1);
 
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
-
-        double amount = senderBalanceBefore + 1;
+        double amount = senderBefore.getBalance() + 1;
 
         transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_BAD_REQUEST);
 
-        double senderBalanceAfter =
-                getAccount(senderRequestSpecification, 0).getBalance();
-
-        double receiverBalanceAfter =
-                getAccount(receiverRequestSpecification, 1).getBalance();
-
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore, "Баланс получателя после перевода");
+        assertBalancesUnchanged(
+                senderSteps, senderBefore,
+                receiverSteps, receiverBefore
+        );
     }
 
     // ТС 23: Перевод между своими аккаунтами
     @Test
     public void transferBetweenOwnAccountsTest() {
-        // перевод со второго акка на первый
-        Account senderBefore = getAccount(senderRequestSpecification, 1);
-        Account receiverBefore = getAccount(senderRequestSpecification, 0);
+        Account senderBefore = getAccount(senderSteps, 1);
+        Account receiverBefore = getAccount(senderSteps, 0);
 
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
-
-        double amount = 100;
+        double amount = RandomData.randomNonBoundaryTransferAmount();
 
         transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
-        double senderBalanceAfter =
-                getAccount(senderRequestSpecification, 1).getBalance();
-
-        double receiverBalanceAfter =
-                getAccount(senderRequestSpecification, 0).getBalance();
-
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore - amount, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore + amount, "Баланс получателя после перевода");
+        assertSuccessfulTransferBalances(
+                senderSteps, senderBefore,
+                receiverSteps, receiverBefore,
+                amount
+        );
     }
 
     // ТС 24: Перевод на чужой аккаунт
     @Test
     public void transferToAnotherUserTest() {
-        // второй акк отправителя, первый акк получателя
-        Account senderBefore = getAccount(senderRequestSpecification, 1);
-        Account receiverBefore = getAccount(receiverRequestSpecification, 0);
+        Account senderBefore = getAccount(senderSteps, 1);
+        Account receiverBefore = getAccount(receiverSteps, 0);
 
-        double senderBalanceBefore = senderBefore.getBalance();
-        double receiverBalanceBefore = receiverBefore.getBalance();
-
-        double amount = 100;
+        double amount = RandomData.randomNonBoundaryTransferAmount();
 
         transfer(senderBefore.getId(), receiverBefore.getId(), amount, HttpStatus.SC_OK);
 
-        double senderBalanceAfter =
-                getAccount(senderRequestSpecification, 1).getBalance();
-
-        double receiverBalanceAfter =
-                getAccount(receiverRequestSpecification, 0).getBalance();
-
-        assertBalanceEquals(senderBalanceAfter, senderBalanceBefore - amount, "Баланс отправителя после перевода");
-        assertBalanceEquals(receiverBalanceAfter, receiverBalanceBefore + amount, "Баланс получателя после перевода");
+        assertSuccessfulTransferBalances(
+                senderSteps, senderBefore,
+                receiverSteps, receiverBefore,
+                amount
+        );
     }
 }

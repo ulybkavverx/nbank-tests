@@ -1,32 +1,21 @@
 package iteration1;
 
-import generators.RandomData;
 import models.CreateUserRequest;
-import models.UserRole;
 import org.junit.jupiter.api.Test;
-import requests.AdminCreateUserRequester;
-import requests.CreateAccountRequester;
+import requests.skelethon.Endpoint;
+import requests.skelethon.requesters.CrudRequester;
+import requests.steps.AdminSteps;
 import specs.RequestSpecs;
 import specs.ResponseSpecs;
 
-public class CreateAccountTest {
+public class CreateAccountTest extends BaseTest {
 
     @Test
     public void userCanCreateAccountTest() {
-        CreateUserRequest userRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getPassword())
-                .role(UserRole.USER.toString())
-                .build();
+        CreateUserRequest userRequest = AdminSteps.createUser();
 
-        // создание пользователя
-        new AdminCreateUserRequester(
-                RequestSpecs.adminSpec(),
-                ResponseSpecs.entityWasCreated())
-                .post(userRequest);
-
-
-        new CreateAccountRequester(RequestSpecs.authAsUser(userRequest.getUsername(), userRequest.getPassword()),
+        new CrudRequester(RequestSpecs.authAsUser(userRequest.getUsername(), userRequest.getPassword()),
+                Endpoint.ACCOUNTS,
                 ResponseSpecs.entityWasCreated())
                 .post(null);
 
