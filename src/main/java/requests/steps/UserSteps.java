@@ -1,12 +1,16 @@
 package requests.steps;
 
+import generators.RandomData;
 import io.restassured.specification.RequestSpecification;
 import models.Account;
+import models.CreateAccountResponse;
 import models.DepositMoneyRequest;
 import models.TransferMoneyRequest;
+import org.apache.http.HttpStatus;
 import requests.AccountRequester;
 import requests.skelethon.Endpoint;
 import requests.skelethon.requesters.CrudRequester;
+import requests.skelethon.requesters.ValidatedCrudRequester;
 import specs.RequestSpecs;
 import specs.ResponseSpecs;
 
@@ -57,5 +61,30 @@ public class UserSteps {
                 Endpoint.TRANSFER_MONEY,
                 ResponseSpecs.requestReturnsStatusCode(expectedStatusCode)
         ).post(request);
+    }
+
+    // создание нового счета для тек пользователя
+    public CreateAccountResponse createAccount() {
+        return new ValidatedCrudRequester<CreateAccountResponse>(
+                requestSpecification,
+                Endpoint.ACCOUNTS,
+                ResponseSpecs.entityWasCreated()
+        ).post(null);
+    }
+
+    private double balanceOf(int accountId) {
+        return getAccounts().stream()
+                .filter(account -> account.getId() == accountId)
+                .findFirst()
+                .orElseThrow()
+                .getBalance();
+    }
+
+    // случайные допустим депозиты, пока баланс не станет >= target
+    public void fundAtLeast(int accountId, double target) {
+        while (balanceOf(accountId) + 0.001 < target) {
+            double need = target - balanceOf(accountId);
+            depositMoney(accountId, RandomData.randomDepositUpTo(need), HttpStatus.SC_OK);
+        }
     }
 }

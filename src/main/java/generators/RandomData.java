@@ -1,10 +1,26 @@
 package generators;
 
 import org.apache.commons.lang3.RandomStringUtils;
+
 import java.util.concurrent.ThreadLocalRandom;
 
 public class RandomData {
-    private RandomData() {}
+    private RandomData() {
+    }
+    public static final double MIN_MONEY = 0.01;
+    public static final double MAX_DEPOSIT = 5_000.00;
+    public static final double MAX_TRANSFER = 10_000.00;
+
+    // случайный депозит
+    public static double randomDepositUpTo(double maxInclusive) {
+        double upper = Math.min(MAX_DEPOSIT, maxInclusive);
+        int upperCents = (int) Math.floor(upper * 100);
+        if (upperCents < 1) {
+            return MIN_MONEY;
+        }
+        int cents = ThreadLocalRandom.current().nextInt(1, upperCents + 1);
+        return cents / 100.0;
+    }
 
     public static String getUserName() {
         return RandomStringUtils.insecure().nextAlphabetic(10);

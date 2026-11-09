@@ -38,9 +38,14 @@ public class CrudRequester extends HttpRequest implements CrudEndpointInterface 
                 .spec(responseSpecification);
     }
 
-    @Override
-    public Object get(long id) {
-        return null;
+    // Получение ресурса без указания ID
+    public ValidatableResponse get() {
+        return given()
+                .spec(requestSpecification)
+                .get(endpoint.getUrl())
+                .then()
+                .assertThat()
+                .spec(responseSpecification);
     }
 
     @Override

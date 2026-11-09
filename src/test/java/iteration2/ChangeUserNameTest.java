@@ -4,6 +4,7 @@ import generators.RandomData;
 import iteration1.BaseTest;
 import models.ChangeUserNameRequest;
 import models.ChangeUserNameResponse;
+import models.Customer;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -71,6 +72,21 @@ public class ChangeUserNameTest extends BaseTest {
     @MethodSource("invalidNames")
     public void userCannotChangeNameWithInvalidData(String name, int expectedStatusCode) {
 
+        // получение тек профиля пользователя до попытки изменения имени
+        Customer profileBefore =
+                new ValidatedCrudRequester<Customer>(
+                        RequestSpecs.authAsUser(USERNAME, PASSWORD),
+                        Endpoint.CHANGE_USER_NAME,
+                        ResponseSpecs.requestReturnsOK()
+                ).get(Customer.class);
+
+        // проверка, что профиль получен и имя заполнено
+        assertThat(profileBefore).isNotNull();
+        assertThat(profileBefore.getName()).isNotBlank();
+
+        // сохранение тек имени пользователя
+        String currentName = profileBefore.getName();
+
         // создание запрос с именем из набора тестовых данных
         ChangeUserNameRequest request = ChangeUserNameRequest.builder()
                 .name(name)
@@ -82,5 +98,18 @@ public class ChangeUserNameTest extends BaseTest {
                 Endpoint.CHANGE_USER_NAME,
                 ResponseSpecs.requestReturnsStatusCode(expectedStatusCode)
         ).put(request);
+
+        // получение профиля повторно после попытки изменения имени
+        Customer profileAfter =
+                new ValidatedCrudRequester<Customer>(
+                        RequestSpecs.authAsUser(USERNAME, PASSWORD),
+                        Endpoint.CHANGE_USER_NAME,
+                        ResponseSpecs.requestReturnsOK()
+                ).get(Customer.class);
+
+        // проверка, что некорректный запрос не изменил имя пользователя
+        softly.assertThat(profileAfter.getName())
+                .as("Имя пользователя не должно измениться после запроса с некорректным именем")
+                .isEqualTo(currentName);
     }
 }

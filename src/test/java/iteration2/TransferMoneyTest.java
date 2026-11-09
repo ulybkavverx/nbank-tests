@@ -3,32 +3,39 @@ package iteration2;
 import generators.RandomData;
 import iteration1.BaseTest;
 import models.Account;
+import models.CreateUserRequest;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import requests.steps.AdminSteps;
 import requests.steps.UserSteps;
 
 public class TransferMoneyTest extends BaseTest {
-
-    // данные пользователя-отправителя
-    private static final String SENDER_USERNAME = "kate0000";
-    private static final String SENDER_PASSWORD = "KateKate12!!";
-
-    // данные пользователя-получателя
-    private static final String RECEIVER_USERNAME = "kate19981";
-    private static final String RECEIVER_PASSWORD = "KateTest19981!";
 
     // шаги для отправителя и получателя перевода
     private UserSteps senderSteps;
     private UserSteps receiverSteps;
 
-    // создание авторизованных шагов для обоих юзеров
+    // создание новых пользователей и авторизация перед каждым тестом
     @BeforeEach
     public void setUp() {
-        senderSteps = new UserSteps(SENDER_USERNAME, SENDER_PASSWORD);
-        receiverSteps = new UserSteps(RECEIVER_USERNAME, RECEIVER_PASSWORD);
+        CreateUserRequest sender = AdminSteps.createUser();
+        senderSteps = new UserSteps(sender.getUsername(), sender.getPassword());
+
+        CreateUserRequest receiver = AdminSteps.createUser();
+        receiverSteps = new UserSteps(receiver.getUsername(), receiver.getPassword());
+
+        // создание счетов(2 шт)
+        senderSteps.createAccount();
+        senderSteps.createAccount();
+        receiverSteps.createAccount();
+        receiverSteps.createAccount();
+
+        for (Account account : senderSteps.getAccounts()) {
+            senderSteps.fundAtLeast(account.getId(), RandomData.MAX_TRANSFER);
+        }
     }
 
     // получение акка пользователя по его индексу в списке
@@ -203,7 +210,7 @@ public class TransferMoneyTest extends BaseTest {
 
         assertSuccessfulTransferBalances(
                 senderSteps, senderBefore,
-                receiverSteps, receiverBefore,
+                senderSteps, receiverBefore,
                 amount
         );
     }
