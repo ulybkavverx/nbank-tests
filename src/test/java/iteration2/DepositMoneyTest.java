@@ -1,7 +1,7 @@
 package iteration2;
 
 import generators.RandomData;
-import iteration1.BaseTest;
+import iteration1.api.BaseTest;
 import models.Account;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;

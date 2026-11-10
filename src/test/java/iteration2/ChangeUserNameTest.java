@@ -1,7 +1,7 @@
 package iteration2;
 
 import generators.RandomData;
-import iteration1.BaseTest;
+import iteration1.api.BaseTest;
 import models.ChangeUserNameRequest;
 import models.ChangeUserNameResponse;
 import models.Customer;
