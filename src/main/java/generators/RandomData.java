@@ -7,6 +7,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class RandomData {
     private RandomData() {
     }
+
     public static final double MIN_MONEY = 0.01;
     public static final double MAX_DEPOSIT = 5_000.00;
     public static final double MAX_TRANSFER = 10_000.00;
@@ -50,7 +51,7 @@ public class RandomData {
         return ThreadLocalRandom.current().nextInt(1_000_000, Integer.MAX_VALUE);
     }
 
-    // генерация имени
+    // генерация валидного имени
     public static String randomValidFullName() {
         String firstName = RandomStringUtils.insecure().nextAlphabetic(5);
         String lastName = RandomStringUtils.insecure().nextAlphabetic(7);
@@ -58,8 +59,30 @@ public class RandomData {
         return capitalize(firstName) + " " + capitalize(lastName);
     }
 
+    // генерация невалидного имени, состоящего из одного слова
+    public static String randomSingleWordName() {
+        String name = RandomStringUtils.insecure().nextAlphabetic(5);
+        return capitalize(name);
+    }
+
     private static String capitalize(String value) {
         return value.substring(0, 1).toUpperCase() + value.substring(1).toLowerCase();
+    }
+
+    // генерация полного невалидного имени с цифрой в случайном слове
+    public static String randomFullNameWithDigit() {
+        String firstName = RandomStringUtils.insecure().nextAlphabetic(5);
+        String lastName = RandomStringUtils.insecure().nextAlphabetic(6);
+
+        int digit = ThreadLocalRandom.current().nextInt(0, 10);
+
+        if (ThreadLocalRandom.current().nextBoolean()) {
+            firstName += digit;
+        } else {
+            lastName += digit;
+        }
+
+        return capitalize(firstName) + " " + capitalize(lastName);
     }
 
     // генерация обычной суммы перевода без граничных значений

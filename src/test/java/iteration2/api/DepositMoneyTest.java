@@ -1,4 +1,4 @@
-package iteration2;
+package iteration2.api;
 
 import generators.RandomData;
 import iteration1.api.BaseTest;

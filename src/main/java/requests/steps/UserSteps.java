@@ -2,10 +2,7 @@ package requests.steps;
 
 import generators.RandomData;
 import io.restassured.specification.RequestSpecification;
-import models.Account;
-import models.CreateAccountResponse;
-import models.DepositMoneyRequest;
-import models.TransferMoneyRequest;
+import models.*;
 import org.apache.http.HttpStatus;
 import requests.AccountRequester;
 import requests.skelethon.Endpoint;
@@ -86,5 +83,28 @@ public class UserSteps {
             double need = target - balanceOf(accountId);
             depositMoney(accountId, RandomData.randomDepositUpTo(need), HttpStatus.SC_OK);
         }
+    }
+
+    // изменение имени тек юзера через api
+    public ChangeUserNameResponse changeUserName(String name) {
+        ChangeUserNameRequest request = ChangeUserNameRequest.builder()
+                .name(name)
+                .build();
+
+        // отправка put запроса и получение ответа
+        return new ValidatedCrudRequester<ChangeUserNameResponse>(
+                requestSpecification,
+                Endpoint.CHANGE_USER_NAME,
+                ResponseSpecs.requestReturnsOK()
+        ).put(request);
+    }
+
+    // получение профиля текущего юзера
+    public CreateUserResponse getProfile() {
+        return new ValidatedCrudRequester<CreateUserResponse>(
+                requestSpecification,
+                Endpoint.PROFILE,
+                ResponseSpecs.requestReturnsOK()
+        ).get();
     }
 }

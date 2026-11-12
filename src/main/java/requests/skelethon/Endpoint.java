@@ -43,6 +43,12 @@ public enum Endpoint {
             "/accounts/transfer",
             TransferMoneyRequest.class,
             BaseModel.class
+    ),
+
+    PROFILE(
+            "/customer/profile",
+            BaseModel.class,
+            CreateUserResponse.class
     );
 
 
