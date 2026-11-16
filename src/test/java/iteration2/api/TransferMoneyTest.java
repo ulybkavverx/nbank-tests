@@ -1,16 +1,16 @@
 package iteration2.api;
 
-import generators.RandomData;
+import api.generators.RandomData;
 import iteration1.api.BaseTest;
-import models.Account;
-import models.CreateUserRequest;
+import api.models.Account;
+import api.models.CreateUserRequest;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.steps.AdminSteps;
-import requests.steps.UserSteps;
+import api.requests.steps.AdminSteps;
+import api.requests.steps.UserSteps;
 
 public class TransferMoneyTest extends BaseTest {
 

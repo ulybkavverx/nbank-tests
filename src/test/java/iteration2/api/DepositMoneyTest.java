@@ -1,14 +1,14 @@
 package iteration2.api;
 
-import generators.RandomData;
+import api.generators.RandomData;
 import iteration1.api.BaseTest;
-import models.Account;
+import api.models.Account;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.steps.UserSteps;
+import api.requests.steps.UserSteps;
 
 import static org.assertj.core.api.Assertions.within;
 
