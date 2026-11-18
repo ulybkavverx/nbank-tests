@@ -116,4 +116,13 @@ public class UserSteps {
                 ResponseSpecs.requestReturnsOK()
         ).get();
     }
+
+    // получение баланса
+    public double getAccountBalance(long accountId) {
+        return getAccounts().stream()
+                .filter(account -> account.getId() == accountId)
+                .findFirst()
+                .orElseThrow()
+                .getBalance();
+    }
 }

@@ -1,42 +1,22 @@
 package iteration2.ui;
 
-import com.codeborne.selenide.Condition;
-import com.codeborne.selenide.Configuration;
-import com.codeborne.selenide.Selectors;
-import com.codeborne.selenide.Selenide;
 import api.generators.RandomData;
 import api.models.CreateUserRequest;
 import api.models.CreateUserResponse;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.openqa.selenium.Alert;
 import api.requests.steps.AdminSteps;
 import api.requests.steps.UserSteps;
+import iteration1.ui.BaseUiTest;
+import org.junit.jupiter.api.Test;
+import ui.pages.BankAlert;
+import ui.pages.ChangeUserNamePage;
+import ui.pages.UserDashboard;
 
-import java.util.Map;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
-import static com.codeborne.selenide.Selenide.$;
-import static com.codeborne.selenide.Selenide.switchTo;
-import static org.junit.jupiter.api.Assertions.*;
-
-public class ChangeUserNameTest {
-
-    @BeforeAll
-    public static void setupSelenoid() {
-        // адрес удалённого браузера в Selenoid
-        Configuration.remote = "http://localhost:4444/wd/hub";
-        // адрес frontend-приложения, доступный из Docker
-        Configuration.baseUrl = "http://192.168.3.179:3000";
-        Configuration.browser = "chrome";
-        Configuration.browserSize = "1920x1080";
-
-        Configuration.browserCapabilities.setCapability("selenoid:options",
-                Map.of("enableVNC", true, "enableLog", true)
-        );
-    }
-
+public class ChangeUserNameTest extends BaseUiTest {
     @Test
-    public void userCanChangeNameTest() {
+    public void userCanSuccessfullyChangeNameTest() {
         // ШАГ 1: создание нового юзера через api
         CreateUserRequest user = AdminSteps.createUser();
 
@@ -46,58 +26,35 @@ public class ChangeUserNameTest {
                 user.getPassword()
         );
 
-        // ШАГ 2: получение тек профиля через api
+        // получение тек профиля через api
         CreateUserResponse profileBefore = userSteps.getProfile();
 
-        // сохранение тек имени юзера
-        String oldName = profileBefore.getName();
         // проверка, что у нового юзера имя еще не задано
-        assertNull(oldName);
+        assertNull(profileBefore.getName());
 
-        // ШАГ 3: генерация нового валидного имени юзера
+        // генерация нового валидного имени юзера
         String newName = RandomData.randomValidFullName();
 
-        // ШАГ 4: открытие страницы авторизации
-        Selenide.open("/login");
+        // ШАГ 2: авторизация юзера
+        authAsUser(user);
 
-        // авторизация юзера через ui
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(user.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(user.getPassword());
-        $("button").click();
+        // переход на главную страницу и открытие редактирования профиля
+        new UserDashboard()
+                .open()
+                .checkWelcomeName("noname")
+                .openEditProfile();
 
-        // проверка успешной авторизации
-        $(Selectors.byClassName("welcome-text")).shouldBe(Condition.visible).shouldHave(Condition.text("Welcome, noname!"));
+        // ШАГ 3: изменение имени
+        new ChangeUserNamePage()
+                .enterName(newName)
+                .saveChanges()
+                .checkAlertMessageAndAccept(BankAlert.NAME_UPDATE_SUCCESSFULLY.getMessage())
+                .goHome();
 
-        // ШАГ 5: переход на страницу ✏️ Edit Profile (смена имени)
-        $(Selectors.byClassName("user-username")).click();
-        // проверить, что открылась страница ✏️ Edit Profile
-        $(Selectors.byText("✏️ Edit Profile")).shouldBe(Condition.visible);
+        // ШАГ 4: проверка, что на главной странице имя изменилось на новое
+        new UserDashboard().checkWelcomeName(newName);
 
-
-        // ШАГ 6: ввод имени в строчку Enter new name
-        $(Selectors.byAttribute("placeholder", "Enter new name")).setValue(newName);
-        // проверка, что имя написано корректно
-        $(Selectors.byAttribute("placeholder", "Enter new name"))
-                .shouldHave(Condition.value(newName));
-
-        // ШАГ 7: нажатие кнопки 💾 Save Changes
-        $(Selectors.byText("\uD83D\uDCBE Save Changes")).click();
-
-        // проверка алерта об успешной операции
-        Alert alert = switchTo().alert();
-        assertTrue(alert.getText().contains("✅ Name updated successfully!"));
-        // закрытие алерта
-        alert.accept();
-
-        // ШАГ 8: нажать на кнопку Home
-        $(Selectors.byText("\uD83C\uDFE0 Home")).click();
-
-        // ШАГ 9: проверка, что на главной странице имя изменилось на новое
-        $(Selectors.byClassName("welcome-text"))
-                .shouldBe(Condition.visible)
-                .shouldHave(Condition.text("Welcome, " + newName + "!"));
-
-        // ШАГ 10: получение обновленного профиля юзера через api
+        // ШАГ 5: получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
         // проверка, что новое имя сохранилось на сервере
         assertEquals(newName, profileAfter.getName());
@@ -114,60 +71,38 @@ public class ChangeUserNameTest {
                 user.getPassword()
         );
 
-        // ШАГ 2: получение тек профиля через api
+        // получение тек профиля через api
         CreateUserResponse profileBefore = userSteps.getProfile();
-
-        // сохранение тек имени юзера
-        String oldName = profileBefore.getName();
         // проверка, что у нового юзера имя еще не задано
-        assertNull(oldName);
+        assertNull(profileBefore.getName());
 
-        // ШАГ 3: генерация нового НЕвалидного имени юзера с одним словом
+        // генерация нового НЕвалидного имени юзера с одним словом
         String newInvalidName = RandomData.randomSingleWordName();
 
-        // ШАГ 4: открытие страницы авторизации
-        Selenide.open("/login");
+        // ШАГ 2: авторизация
+        authAsUser(user);
 
-        // авторизация юзера через ui
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(user.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(user.getPassword());
-        $("button").click();
+        // переход на главную страницу и открытие редактирования профиля
+        new UserDashboard()
+                .open()
+                .checkWelcomeName("noname")
+                .openEditProfile();
 
-        // проверка успешной авторизации
-        $(Selectors.byClassName("welcome-text")).shouldBe(Condition.visible).shouldHave(Condition.text("Welcome, noname!"));
+        // ШАГ 3: изменение имени
+        new ChangeUserNamePage()
+                .enterName(newInvalidName)
+                .saveChanges()
+                .checkAlertMessageAndAccept(BankAlert.NAME_MUST_CONTAINS_2_WORDS_WITH_LETTERS_ONLY.getMessage());
 
-        // ШАГ 5: переход на страницу ✏️ Edit Profile (смена имени)
-        $(Selectors.byClassName("user-username")).click();
-        // проверить, что открылась страница ✏️ Edit Profile
-        $(Selectors.byText("✏️ Edit Profile")).shouldBe(Condition.visible);
+        // ШАГ 4: проверка, что на главной странице имя НЕ изменилось
+        new ChangeUserNamePage()
+                .goHome()
+                .checkWelcomeName("noname");
 
-        // ШАГ 6: ввод НЕвалидного имени в строчку Enter new name
-        $(Selectors.byAttribute("placeholder", "Enter new name")).setValue(newInvalidName);
-        // проверка, что имя написано корректно
-        $(Selectors.byAttribute("placeholder", "Enter new name"))
-                .shouldHave(Condition.value(newInvalidName));
-
-        // ШАГ 7: нажатие кнопки 💾 Save Changes
-        $(Selectors.byText("\uD83D\uDCBE Save Changes")).click();
-
-        // проверка алерта об НЕуспешной операции
-        Alert alert = switchTo().alert();
-        assertTrue(alert.getText().contains("Name must contain two words with letters only"));
-        // закрытие алерта
-        alert.accept();
-
-        // ШАГ 8: нажать на кнопку Home
-        $(Selectors.byText("\uD83C\uDFE0 Home")).click();
-
-        // ШАГ 9: проверка, что на главной странице имя НЕ изменилось
-        $(Selectors.byClassName("welcome-text"))
-                .shouldBe(Condition.visible)
-                .shouldHave(Condition.text("Welcome, noname!"));
-
-        // ШАГ 10: получение обновленного профиля юзера через api
+        // ШАГ 5: получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
         // проверка, что имя НЕ изменилось на сервере
-        assertEquals(oldName, profileAfter.getName());
+        assertNull(profileAfter.getName());
     }
 
     @Test
@@ -181,59 +116,38 @@ public class ChangeUserNameTest {
                 user.getPassword()
         );
 
-        // ШАГ 2: получение тек профиля через api
+        // получение тек профиля через api
         CreateUserResponse profileBefore = userSteps.getProfile();
 
-        // сохранение тек имени юзера
-        String oldName = profileBefore.getName();
         // проверка, что у нового юзера имя еще не задано
-        assertNull(oldName);
+        assertNull(profileBefore.getName());
 
-        // ШАГ 3: генерация нового НЕвалидного имени юзера с цифрой
+        // генерация нового НЕвалидного имени юзера с цифрой
         String newInvalidName = RandomData.randomFullNameWithDigit();
 
-        // ШАГ 4: открытие страницы авторизации
-        Selenide.open("/login");
+        // ШАГ 2: авторизация
+        authAsUser(user);
 
-        // авторизация юзера через ui
-        $(Selectors.byAttribute("placeholder", "Username")).sendKeys(user.getUsername());
-        $(Selectors.byAttribute("placeholder", "Password")).sendKeys(user.getPassword());
-        $("button").click();
+        // переход на главную страницу и открытие редактирования профиля
+        new UserDashboard()
+                .open()
+                .checkWelcomeName("noname")
+                .openEditProfile();
 
-        // проверка успешной авторизации
-        $(Selectors.byClassName("welcome-text")).shouldBe(Condition.visible).shouldHave(Condition.text("Welcome, noname!"));
+        // ШАГ 3: изменение имени
+        new ChangeUserNamePage()
+                .enterName(newInvalidName)
+                .saveChanges()
+                .checkAlertMessageAndAccept(BankAlert.NAME_MUST_CONTAINS_2_WORDS_WITH_LETTERS_ONLY.getMessage());
 
-        // ШАГ 5: переход на страницу ✏️ Edit Profile (смена имени)
-        $(Selectors.byClassName("user-username")).click();
-        // проверить, что открылась страница ✏️ Edit Profile
-        $(Selectors.byText("✏️ Edit Profile")).shouldBe(Condition.visible);
+        // ШАГ 4: проверка, что на главной странице имя НЕ изменилось
+        new ChangeUserNamePage()
+                .goHome()
+                .checkWelcomeName("noname");
 
-        // ШАГ 6: ввод НЕвалидного имени в строчку Enter new name
-        $(Selectors.byAttribute("placeholder", "Enter new name")).setValue(newInvalidName);
-        // проверка, что имя написано корректно
-        $(Selectors.byAttribute("placeholder", "Enter new name"))
-                .shouldHave(Condition.value(newInvalidName));
-
-        // ШАГ 7: нажатие кнопки 💾 Save Changes
-        $(Selectors.byText("\uD83D\uDCBE Save Changes")).click();
-
-        // проверка алерта об НЕуспешной операции
-        Alert alert = switchTo().alert();
-        assertTrue(alert.getText().contains("Name must contain two words with letters only"));
-        // закрытие алерта
-        alert.accept();
-
-        // ШАГ 8: нажать на кнопку Home
-        $(Selectors.byText("\uD83C\uDFE0 Home")).click();
-
-        // ШАГ 9: проверка, что на главной странице имя НЕ изменилось
-        $(Selectors.byClassName("welcome-text"))
-                .shouldBe(Condition.visible)
-                .shouldHave(Condition.text("Welcome, noname!"));
-
-        // ШАГ 10: получение обновленного профиля юзера через api
+        // ШАГ 5: получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
         // проверка, что имя НЕ изменилось на сервере
-        assertEquals(oldName, profileAfter.getName());
+        assertNull(profileAfter.getName());
     }
 }
