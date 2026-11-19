@@ -13,6 +13,7 @@ public class UserDashboard extends BasePage<UserDashboard> {
     private SelenideElement createNewAccount = $(Selectors.byText("➕ Create New Account"));
     private SelenideElement userUsername = $(Selectors.byClassName("user-username"));
     private SelenideElement editProfile = $(Selectors.byText("✏️ Edit Profile"));
+    public static final String DEFAULT_USER_NAME = "noname";
 
     @Override
     public String url() {
