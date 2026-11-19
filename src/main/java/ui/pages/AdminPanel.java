@@ -1,9 +1,13 @@
 package ui.pages;
 
+import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.ElementsCollection;
 import com.codeborne.selenide.Selectors;
 import com.codeborne.selenide.SelenideElement;
 import lombok.Getter;
+import ui.elements.UserBage;
+
+import java.util.List;
 
 import static com.codeborne.selenide.Selenide.$;
 
@@ -25,7 +29,9 @@ public class AdminPanel extends BasePage<AdminPanel> {
         return this;
     }
 
-    public ElementsCollection getAllUsers() {
-       return  $(Selectors.byText("All Users")).parent().findAll("li");
+    public List<UserBage> getAllUsers() {
+        ElementsCollection elementsCollection = $(Selectors.byText("All Users")).parent().findAll("li");
+        elementsCollection.first().shouldBe(Condition.visible);
+        return generatePageElements(elementsCollection, UserBage::new);
     }
 }
