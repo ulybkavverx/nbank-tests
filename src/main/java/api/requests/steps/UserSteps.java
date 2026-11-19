@@ -90,7 +90,14 @@ public class UserSteps {
     public void fundAtLeast(int accountId, double target) {
         while (balanceOf(accountId) + 0.001 < target) {
             double need = target - balanceOf(accountId);
-            depositMoney(accountId, RandomData.randomDepositUpTo(need), HttpStatus.SC_OK);
+            //Math.floor() округляет необходимую сумму вниз до копеек
+            double amount = Math.min(5000, Math.floor(need * 100) / 100.0);
+            if (amount < 0.01) {
+                // Math.min() не позволяет превысить максимальный депозит
+                // Math.ceil() используется, если после округления сумма оказалась меньше минимального депозита 0.01
+                amount = Math.min(5000, Math.ceil(need * 100) / 100.0);
+            }
+            depositMoney(accountId, amount, HttpStatus.SC_OK);
         }
     }
 
