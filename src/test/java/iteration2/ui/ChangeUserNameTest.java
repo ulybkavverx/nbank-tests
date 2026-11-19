@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class ChangeUserNameTest extends BaseUiTest {
+    private static final String DEFAULT_USER_NAME = "noname";
     @Test
     @UserSession
     public void userCanSuccessfullyChangeNameTest() {
@@ -33,7 +34,7 @@ public class ChangeUserNameTest extends BaseUiTest {
         // переход на главную страницу и открытие редактирования профиля
         new UserDashboard()
                 .open()
-                .checkWelcomeName("noname")
+                .checkWelcomeName(DEFAULT_USER_NAME)
                 .openEditProfile();
 
         // изменение имени
@@ -69,7 +70,7 @@ public class ChangeUserNameTest extends BaseUiTest {
         // переход на главную страницу и открытие редактирования профиля
         new UserDashboard()
                 .open()
-                .checkWelcomeName("noname")
+                .checkWelcomeName(DEFAULT_USER_NAME)
                 .openEditProfile();
 
         // изменение имени
@@ -81,7 +82,7 @@ public class ChangeUserNameTest extends BaseUiTest {
         // проверка, что на главной странице имя НЕ изменилось
         new ChangeUserNamePage()
                 .goHome()
-                .checkWelcomeName("noname");
+                .checkWelcomeName(DEFAULT_USER_NAME);
 
         // получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
@@ -107,7 +108,7 @@ public class ChangeUserNameTest extends BaseUiTest {
         // переход на главную страницу и открытие редактирования профиля
         new UserDashboard()
                 .open()
-                .checkWelcomeName("noname")
+                .checkWelcomeName(DEFAULT_USER_NAME)
                 .openEditProfile();
 
         // изменение имени
@@ -119,7 +120,7 @@ public class ChangeUserNameTest extends BaseUiTest {
         // проверка, что на главной странице имя НЕ изменилось
         new ChangeUserNamePage()
                 .goHome()
-                .checkWelcomeName("noname");
+                .checkWelcomeName(DEFAULT_USER_NAME);
 
         // получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
