@@ -11,6 +11,8 @@ import ui.pages.BasePage;
 import java.util.LinkedList;
 import java.util.List;
 
+import static common.utils.CommonUtils.repeat;
+
 public class UserSessionExtension implements BeforeEachCallback {
     @Override
     public void beforeEach(ExtensionContext context) throws Exception {
@@ -23,10 +25,8 @@ public class UserSessionExtension implements BeforeEachCallback {
 
             List<CreateUserRequest> users = new LinkedList<>();
 
-            for (int i = 0; i < userCount; i++) {
-                CreateUserRequest user = AdminSteps.createUser();
-                users.add(user);
-            }
+            repeat(userCount, () -> users.add(AdminSteps.createUser()));
+
             SessionStorage.addUsers(users);
 
             int authAsUser = annotation.auth();

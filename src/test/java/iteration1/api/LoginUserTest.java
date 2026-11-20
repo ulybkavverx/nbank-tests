@@ -17,8 +17,8 @@ public class LoginUserTest extends BaseTest {
     @Test
     public void adminCanGenerateAuthTokenTest() {
         LoginUserRequest userRequest = LoginUserRequest.builder()
-                .username("admin")
-                .password("admin")
+                .username(RequestSpecs.ADMIN_USERNAME)
+                .password(RequestSpecs.ADMIN_PASSWORD)
                 .build();
 
         new ValidatedCrudRequester<CreateUserResponse>(RequestSpecs.unauthSpec(),
@@ -35,6 +35,6 @@ public class LoginUserTest extends BaseTest {
                 Endpoint.LOGIN,
                 ResponseSpecs.requestReturnsOK())
                 .post(LoginUserRequest.builder().username(userRequest.getUsername()).password(userRequest.getPassword()).build())
-                .header("Authorization", Matchers.notNullValue());
+                .header(RequestSpecs.AUTHORIZATION_HEADER, Matchers.notNullValue());
     }
 }
