@@ -15,17 +15,23 @@ import java.util.List;
 import java.util.Map;
 
 public class RequestSpecs {
-    private static Map<String, String> authHeaders = new HashMap<>(Map.of("admin", "Basic YWRtaW46YWRtaW4="));
+    public static final String AUTHORIZATION_HEADER = "Authorization";
+    public static final String ADMIN_AUTH_HEADER = "Basic YWRtaW46YWRtaW4=";
+    public static final String ADMIN_USERNAME = "admin";
+    public static final String ADMIN_PASSWORD = "admin";
 
-    private RequestSpecs(){}
+    private static final Map<String, String> authHeaders = new HashMap<>(Map.of(ADMIN_USERNAME, ADMIN_AUTH_HEADER));
+
+    private RequestSpecs() {
+    }
 
     private static RequestSpecBuilder defaultRequestBuilder() {
         return new RequestSpecBuilder()
                 .setContentType(ContentType.JSON)
                 .setAccept(ContentType.JSON)
-                .addFilters( List.of(new RequestLoggingFilter(),
+                .addFilters(List.of(new RequestLoggingFilter(),
                         new ResponseLoggingFilter()))
-                .setBaseUri(Config.getProperty("apiBaseUrl") +Config.getProperty("apiVersion"));
+                .setBaseUri(Config.getProperty("apiBaseUrl") + Config.getProperty("apiVersion"));
     }
 
     public static RequestSpecification unauthSpec() {
@@ -34,13 +40,13 @@ public class RequestSpecs {
 
     public static RequestSpecification adminSpec() {
         return defaultRequestBuilder()
-                .addHeader("Authorization", authHeaders.get("admin"))
+                .addHeader(AUTHORIZATION_HEADER, authHeaders.get(ADMIN_USERNAME))
                 .build();
     }
 
     public static RequestSpecification authAsUser(String username, String password) {
         return defaultRequestBuilder()
-                .addHeader("Authorization", getUserAuthHeader(username, password))
+                .addHeader(AUTHORIZATION_HEADER, getUserAuthHeader(username, password))
                 .build();
     }
 
@@ -54,7 +60,7 @@ public class RequestSpecs {
                     ResponseSpecs.requestReturnsOK())
                     .post(LoginUserRequest.builder().username(username).password(password).build())
                     .extract()
-                    .header("Authorization");
+                    .header(AUTHORIZATION_HEADER);
 
             authHeaders.put(username, userAuthHeader);
         } else {

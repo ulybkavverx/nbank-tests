@@ -8,7 +8,6 @@ import api.requests.steps.UserSteps;
 import iteration1.ui.BaseUiTest;
 import org.junit.jupiter.api.Test;
 import ui.pages.BankAlert;
-import ui.pages.ChangeUserNamePage;
 import ui.pages.UserDashboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,10 +25,8 @@ public class ChangeUserNameTest extends BaseUiTest {
                 user.getPassword()
         );
 
-        // получение тек профиля через api
+        // получение тек профиля и проверка, что имя еще не задано
         CreateUserResponse profileBefore = userSteps.getProfile();
-
-        // проверка, что у нового юзера имя еще не задано
         assertNull(profileBefore.getName());
 
         // генерация нового валидного имени юзера
@@ -38,23 +35,18 @@ public class ChangeUserNameTest extends BaseUiTest {
         // ШАГ 2: авторизация юзера
         authAsUser(user);
 
-        // переход на главную страницу и открытие редактирования профиля
+        // ШАГ 3: изменение имени через ui и проверка отображения нового имени на Dashboard
         new UserDashboard()
                 .open()
                 .checkWelcomeName(UserDashboard.DEFAULT_USER_NAME)
-                .openEditProfile();
-
-        // ШАГ 3: изменение имени
-        new ChangeUserNamePage()
+                .openEditProfile()
                 .enterName(newName)
                 .saveChanges()
                 .checkAlertMessageAndAccept(BankAlert.NAME_UPDATE_SUCCESSFULLY.getMessage())
-                .goHome();
+                .goHome()
+                .checkWelcomeName(newName);
 
-        // ШАГ 4: проверка, что на главной странице имя изменилось на новое
-        new UserDashboard().checkWelcomeName(newName);
-
-        // ШАГ 5: получение обновленного профиля юзера через api
+        // ШАГ 4: получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
         // проверка, что новое имя сохранилось на сервере
         assertEquals(newName, profileAfter.getName());
@@ -71,9 +63,8 @@ public class ChangeUserNameTest extends BaseUiTest {
                 user.getPassword()
         );
 
-        // получение тек профиля через api
+        // получение тек профиля и проверка, что имя еще не задано
         CreateUserResponse profileBefore = userSteps.getProfile();
-        // проверка, что у нового юзера имя еще не задано
         assertNull(profileBefore.getName());
 
         // генерация нового НЕвалидного имени юзера с одним словом
@@ -82,24 +73,18 @@ public class ChangeUserNameTest extends BaseUiTest {
         // ШАГ 2: авторизация
         authAsUser(user);
 
-        // переход на главную страницу и открытие редактирования профиля
+        // ШАГ 3: изменение имени через ui и проверка отображения имени на Dashboard
         new UserDashboard()
                 .open()
                 .checkWelcomeName(UserDashboard.DEFAULT_USER_NAME)
-                .openEditProfile();
-
-        // ШАГ 3: изменение имени
-        new ChangeUserNamePage()
+                .openEditProfile()
                 .enterName(newInvalidName)
                 .saveChanges()
-                .checkAlertMessageAndAccept(BankAlert.NAME_MUST_CONTAINS_2_WORDS_WITH_LETTERS_ONLY.getMessage());
-
-        // ШАГ 4: проверка, что на главной странице имя НЕ изменилось
-        new ChangeUserNamePage()
+                .checkAlertMessageAndAccept(BankAlert.NAME_MUST_CONTAINS_2_WORDS_WITH_LETTERS_ONLY.getMessage())
                 .goHome()
                 .checkWelcomeName(UserDashboard.DEFAULT_USER_NAME);
 
-        // ШАГ 5: получение обновленного профиля юзера через api
+        // ШАГ 4: получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
         // проверка, что имя НЕ изменилось на сервере
         assertNull(profileAfter.getName());
@@ -116,10 +101,8 @@ public class ChangeUserNameTest extends BaseUiTest {
                 user.getPassword()
         );
 
-        // получение тек профиля через api
+        // получение тек профиля и проверка, что имя еще не задано
         CreateUserResponse profileBefore = userSteps.getProfile();
-
-        // проверка, что у нового юзера имя еще не задано
         assertNull(profileBefore.getName());
 
         // генерация нового НЕвалидного имени юзера с цифрой
@@ -128,24 +111,18 @@ public class ChangeUserNameTest extends BaseUiTest {
         // ШАГ 2: авторизация
         authAsUser(user);
 
-        // переход на главную страницу и открытие редактирования профиля
+        // ШАГ 3: изменение имени через ui и проверка отображения имени на Dashboard
         new UserDashboard()
                 .open()
                 .checkWelcomeName(UserDashboard.DEFAULT_USER_NAME)
-                .openEditProfile();
-
-        // ШАГ 3: изменение имени
-        new ChangeUserNamePage()
+                .openEditProfile()
                 .enterName(newInvalidName)
                 .saveChanges()
-                .checkAlertMessageAndAccept(BankAlert.NAME_MUST_CONTAINS_2_WORDS_WITH_LETTERS_ONLY.getMessage());
-
-        // ШАГ 4: проверка, что на главной странице имя НЕ изменилось
-        new ChangeUserNamePage()
+                .checkAlertMessageAndAccept(BankAlert.NAME_MUST_CONTAINS_2_WORDS_WITH_LETTERS_ONLY.getMessage())
                 .goHome()
                 .checkWelcomeName(UserDashboard.DEFAULT_USER_NAME);
 
-        // ШАГ 5: получение обновленного профиля юзера через api
+        // ШАГ 4: получение обновленного профиля юзера через api
         CreateUserResponse profileAfter = userSteps.getProfile();
         // проверка, что имя НЕ изменилось на сервере
         assertNull(profileAfter.getName());

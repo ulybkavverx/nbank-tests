@@ -19,16 +19,16 @@ public class CreateAccountTest extends BaseUiTest {
 
         authAsUser(user);
 
-        new UserDashboard().open().createNewAccount();
+       UserDashboard dashboard = new UserDashboard().open().createNewAccount();
 
-        List<CreateAccountResponse> createdAccounts = new UserSteps(user.getUsername(), user.getPassword())
-                .getAllAccounts();
+        List<CreateAccountResponse> createdAccounts =
+                new UserSteps(user.getUsername(), user.getPassword()).getAllAccounts();
 
         assertThat(createdAccounts).hasSize(1);
 
-        new UserDashboard().checkAlertMessageAndAccept
-                (BankAlert.NEW_ACCOUNT_CREATED.getMessage() + createdAccounts.getFirst().getAccountNumber());
-
+        // между двумя ui-действиями выполняется api-запрос, поэтому здесь переменная
+        dashboard.checkAlertMessageAndAccept(BankAlert.NEW_ACCOUNT_CREATED.getMessage()
+        + createdAccounts.getFirst().getAccountNumber());
         assertThat(createdAccounts.getFirst().getBalance()).isZero();
     }
 }

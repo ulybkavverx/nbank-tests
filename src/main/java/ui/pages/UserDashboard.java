@@ -29,9 +29,9 @@ public class UserDashboard extends BasePage<UserDashboard> {
         return this;
     }
 
-    public UserDashboard openEditProfile() {
+    public ChangeUserNamePage openEditProfile() {
         userUsername.shouldBe(Condition.visible).click();
         editProfile.shouldBe(Condition.visible);
-        return this;
+        return new ChangeUserNamePage();
     }
 }
