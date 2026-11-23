@@ -5,6 +5,8 @@ import io.restassured.specification.ResponseSpecification;
 import org.apache.http.HttpStatus;
 import org.hamcrest.Matchers;
 
+import java.util.List;
+
 public class ResponseSpecs {
     private ResponseSpecs() {}
 
@@ -24,10 +26,10 @@ public class ResponseSpecs {
                 .build();
     }
 
-    public static ResponseSpecification requestReturnsBadRequest(String errorKey, String errorValue) {
+    public static ResponseSpecification requestReturnsBadRequest(String errorKey, List<String> errorValues) {
         return defaultResponseBuilder()
                 .expectStatusCode(HttpStatus.SC_BAD_REQUEST)
-                .expectBody(errorKey, Matchers.equalTo(errorValue))
+                .expectBody(errorKey, Matchers.containsInAnyOrder(errorValues.toArray()))
                 .build();
     }
 
