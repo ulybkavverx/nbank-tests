@@ -9,8 +9,10 @@ import common.extensions.AdminSessionExtension;
 import common.extensions.BrowserMatchExtension;
 import common.extensions.UserSessionExtension;
 import iteration1.api.BaseTest;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
+import ui.pages.BasePage;
 
 import java.util.Map;
 
@@ -20,6 +22,11 @@ import static com.codeborne.selenide.Selenide.executeJavaScript;
 @ExtendWith(UserSessionExtension.class)
 @ExtendWith(BrowserMatchExtension.class)
 public class BaseUiTest extends BaseTest {
+    @AfterEach
+    void closeAlertAfterTest() {
+        BasePage.closeAlertIfPresent();
+    }
+
     @BeforeAll
     public static void setupSelenoid() {
         // адрес удалённого браузера в Selenoid

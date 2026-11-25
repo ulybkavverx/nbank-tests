@@ -1,15 +1,14 @@
 package api.requests.steps;
 
-import api.generators.RandomData;
 import api.models.*;
-import io.restassured.specification.RequestSpecification;
-import org.apache.http.HttpStatus;
 import api.requests.AccountRequester;
 import api.requests.skelethon.Endpoint;
 import api.requests.skelethon.requesters.CrudRequester;
 import api.requests.skelethon.requesters.ValidatedCrudRequester;
 import api.specs.RequestSpecs;
 import api.specs.ResponseSpecs;
+import io.restassured.specification.RequestSpecification;
+import org.apache.http.HttpStatus;
 
 import java.util.List;
 
@@ -39,7 +38,7 @@ public class UserSteps {
     }
 
     // пополнение указанного акка на заданную сумму, проверка статуса
-    public void depositMoney(int accountId, double amount, int expectedStatusCode) {
+    public void depositMoney(long accountId, double amount, int expectedStatusCode) {
         DepositMoneyRequest request = DepositMoneyRequest.builder()
                 .id(accountId)
                 .balance(amount)
@@ -88,16 +87,14 @@ public class UserSteps {
 
     // случайные допустим депозиты, пока баланс не станет >= target
     public void fundAtLeast(int accountId, double target) {
-        while (balanceOf(accountId) + 0.001 < target) {
+        long targetCents = Math.round(target * 100);
+        while (Math.round(balanceOf(accountId) * 100) < targetCents) {
             double need = target - balanceOf(accountId);
-            //Math.floor() округляет необходимую сумму вниз до копеек
-            double amount = Math.min(5000, Math.floor(need * 100) / 100.0);
-            if (amount < 0.01) {
-                // Math.min() не позволяет превысить максимальный депозит
-                // Math.ceil() используется, если после округления сумма оказалась меньше минимального депозита 0.01
-                amount = Math.min(5000, Math.ceil(need * 100) / 100.0);
+            double deposit = Math.min(5000, Math.floor(need * 100) / 100.0);
+            if (deposit < 0.01) {
+                deposit = 0.01;
             }
-            depositMoney(accountId, amount, HttpStatus.SC_OK);
+            depositMoney(accountId, deposit, HttpStatus.SC_OK);
         }
     }
 

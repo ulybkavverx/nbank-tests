@@ -14,21 +14,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TransferMoneyTest extends BaseUiTest {
     private static final double INVALID_TRANSFER_AMOUNT = RandomData.MAX_TRANSFER + 0.01;
+    private static final double TRANSFER_BALANCE_RESERVE = 1.00;
 
     @Test
     @UserSession(value = 2)
     public void senderCanTransferMoneyToRecipientsAccountTest() {
-        // генерация случайного трансфера без учета границ
-        double amount = RandomData.randomNonBoundaryTransferAmount();
+        // генерация случайного трансфера без учета границ с округлением до копеек
+        double amount = RandomData.randomNonBoundaryTransferAmountRounded();
 
         // получение UserSteps отправителя и получателя
         UserSteps senderSteps = SessionStorage.getSteps(1);
         UserSteps recipientSteps = SessionStorage.getSteps(2);
 
-        // создание счета отправителя
+        // создание счета отправителя и пополнение с запасом
         CreateAccountResponse senderAccount = senderSteps.createAccount();
-        // пополнение счета отправителя, чтобы хватило денег на перевод
-        senderSteps.fundAtLeast((int) senderAccount.getId(), amount);
+        senderSteps.fundAtLeast((int) senderAccount.getId(), amount + TRANSFER_BALANCE_RESERVE);
 
         // создание счета получателя через api
         CreateAccountResponse receiverAccount = recipientSteps.createAccount();
@@ -37,10 +37,8 @@ public class TransferMoneyTest extends BaseUiTest {
         String recipientName = RandomData.randomValidFullName();
         recipientSteps.changeUserName(recipientName);
 
-        // получение баланса отправителя ДО трансфера через api
+        // получение балансов обоих счетов ДО трансфера через api
         double senderBalanceBefore = senderSteps.getAccountBalance(senderAccount.getId());
-
-        // получение баланса получателя ДО трансфера через api
         double recipientBalanceBefore = recipientSteps.getAccountBalance(receiverAccount.getId());
 
         // выполнение трансфера через ui
@@ -54,16 +52,12 @@ public class TransferMoneyTest extends BaseUiTest {
                 .sendTransfer()
                 .checkAlertMessageAndAccept(BankAlert.TRANSFER_SUCCESSFULLY.getMessage());
 
-        // получение баланса отправителя ПОСЛЕ трансфера
+        // получение балансов обоих счетов ПОСЛЕ трансфера
         double senderBalanceAfter = senderSteps.getAccountBalance(senderAccount.getId());
-
-        // получение баланса получателя ПОСЛЕ трансфера
         double recipientBalanceAfter = recipientSteps.getAccountBalance(receiverAccount.getId());
 
-        // проверка, что баланс отправителя уменьшился на сумму перевода
+        // проверка изменения балансов ПОСЛЕ трансфера
         assertEquals(senderBalanceBefore - amount, senderBalanceAfter, 0.001);
-
-        // проверка, что баланс получателя увеличился на сумму перевода
         assertEquals(recipientBalanceBefore + amount, recipientBalanceAfter, 0.001);
     }
 
@@ -77,10 +71,9 @@ public class TransferMoneyTest extends BaseUiTest {
         UserSteps senderSteps = SessionStorage.getSteps(1);
         UserSteps recipientSteps = SessionStorage.getSteps(2);
 
-        // создание счета отправителя через api
+        // создание счета отправителя через api и пополнение
         CreateAccountResponse senderAccount = senderSteps.createAccount();
-        // пополнение счета отправителя, чтобы хватило денег на перевод
-        senderSteps.fundAtLeast((int) senderAccount.getId(), amount);
+        senderSteps.fundAtLeast((int) senderAccount.getId(), amount + TRANSFER_BALANCE_RESERVE);
 
         // создание счета получателя через api
         CreateAccountResponse receiverAccount = recipientSteps.createAccount();
@@ -89,10 +82,8 @@ public class TransferMoneyTest extends BaseUiTest {
         String recipientName = RandomData.randomValidFullName();
         recipientSteps.changeUserName(recipientName);
 
-        // получение баланса отправителя ДО трансфера через api
+        // получение баланса обоих счетов ДО трансфера через api
         double senderBalanceBefore = senderSteps.getAccountBalance(senderAccount.getId());
-
-        // получение баланса акка получателя ДО трансфера через api
         double recipientBalanceBefore = recipientSteps.getAccountBalance(receiverAccount.getId());
 
         // выполнение трансфера через ui
@@ -106,16 +97,12 @@ public class TransferMoneyTest extends BaseUiTest {
                 .sendTransfer()
                 .checkAlertMessageAndAccept(BankAlert.TRANSFER_SUCCESSFULLY.getMessage());
 
-        // получение баланса отправителя ПОСЛЕ трансфера
+        // получение баланса обоих счетов ПОСЛЕ трансфера
         double senderBalanceAfter = senderSteps.getAccountBalance(senderAccount.getId());
-
-        // получение баланса получателя ПОСЛЕ трансфера
         double recipientBalanceAfter = recipientSteps.getAccountBalance(receiverAccount.getId());
 
-        // проверка, что баланс отправителя уменьшился ровно на сумму перевода
+        // проверка изменения балансов ПОСЛЕ трансфера
         assertEquals(senderBalanceBefore - amount, senderBalanceAfter, 0.001);
-
-        // проверка, что баланс получателя увеличился ровно на сумму перевода
         assertEquals(recipientBalanceBefore + amount, recipientBalanceAfter, 0.001);
     }
 
@@ -129,9 +116,8 @@ public class TransferMoneyTest extends BaseUiTest {
         UserSteps senderSteps = SessionStorage.getSteps(1);
         UserSteps recipientSteps = SessionStorage.getSteps(2);
 
-        // создание счета отправителя
+        // создание счета отправителя и пополнение
         CreateAccountResponse senderAccount = senderSteps.createAccount();
-        // пополнение счета отправителя, чтобы хватило денег на перевод
         senderSteps.fundAtLeast((int) senderAccount.getId(), amount);
 
         // создание счета получателя через api
@@ -141,10 +127,8 @@ public class TransferMoneyTest extends BaseUiTest {
         String recipientName = RandomData.randomValidFullName();
         recipientSteps.changeUserName(recipientName);
 
-        // получение баланса отправителя ДО трансфера через api
+        // получение баланса обоих счетов ДО трансфера через api
         double senderBalanceBefore = senderSteps.getAccountBalance(senderAccount.getId());
-
-        // получение баланса получателя ДО трансфера через api
         double recipientBalanceBefore = recipientSteps.getAccountBalance(receiverAccount.getId());
 
         // выполнение трансфера через ui
@@ -158,16 +142,12 @@ public class TransferMoneyTest extends BaseUiTest {
                 .sendTransfer()
                 .checkAlertMessageAndAccept(BankAlert.TRANSFER_AMOUNT_CANNOT_EXCEED_10000.getMessage());
 
-        // получение баланса отправителя ПОСЛЕ трансфера
+        // получение баланса обоих счетов ПОСЛЕ трансфера
         double senderBalanceAfter = senderSteps.getAccountBalance(senderAccount.getId());
-
-        // получение баланса получателя ПОСЛЕ трансфера
         double recipientBalanceAfter = recipientSteps.getAccountBalance(receiverAccount.getId());
 
-        // проверка, что баланс отправителя не изменился
+        // проверка изменения балансов ПОСЛЕ трансфера
         assertEquals(senderBalanceBefore, senderBalanceAfter, 0.001);
-
-        // проверка, что баланс получателя не изменился
         assertEquals(recipientBalanceBefore, recipientBalanceAfter, 0.001);
     }
 }

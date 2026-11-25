@@ -46,6 +46,10 @@ public class RandomData {
         return amountCents / 100.0;
     }
 
+    public static double randomNonBoundaryDepositAmountRounded() {
+        return Math.round(randomNonBoundaryDepositAmount() * 100) / 100.0;
+    }
+
     // генерация id для проверки несуществующего акка
     public static int getNonExistingAccountID() {
         return ThreadLocalRandom.current().nextInt(1_000_000, Integer.MAX_VALUE);
@@ -90,5 +94,9 @@ public class RandomData {
     public static double randomNonBoundaryTransferAmount() {
         double amountCents = ThreadLocalRandom.current().nextInt(2, 999_999);
         return amountCents / 100.0;
+    }
+
+    public static double randomNonBoundaryTransferAmountRounded() {
+        return Math.round(randomNonBoundaryTransferAmount() * 100) / 100.0;
     }
 }

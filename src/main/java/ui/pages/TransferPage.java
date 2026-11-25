@@ -2,7 +2,10 @@ package ui.pages;
 
 import com.codeborne.selenide.Condition;
 import com.codeborne.selenide.Selectors;
+import com.codeborne.selenide.Selenide;
 import com.codeborne.selenide.SelenideElement;
+
+import java.time.Duration;
 
 import static com.codeborne.selenide.Selenide.$;
 
@@ -28,10 +31,23 @@ public class TransferPage extends BasePage<TransferPage> {
     }
 
     public TransferPage selectAccount(long accountId) {
+        String id = String.valueOf(accountId);
+
+        // обновление страницы для загрузки актуального списка счетов
+        Selenide.refresh();
+        checkPageIsOpened();
+
+        // ожидание загрузки селектора
         accountSelector.shouldBe(Condition.visible);
-        accountSelector.shouldHave(Condition.text("-- Choose an account --"));
-        accountSelector.selectOptionByValue(String.valueOf(accountId));
-        accountSelector.shouldHave(Condition.value(String.valueOf(accountId)));
+
+        // ожидание появления нужного счета
+        accountSelector.$$("option[value='%s']".formatted(id))
+                .first()
+                .should(Condition.exist, Duration.ofSeconds(10));
+
+        // выбор счета
+        accountSelector.selectOptionByValue(id);
+        accountSelector.shouldHave(Condition.value(id));
         return this;
     }
 

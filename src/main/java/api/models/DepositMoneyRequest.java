@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class DepositMoneyRequest extends BaseModel {
 
     // id аккаунта, на который зачисляем деньги
-    private int id;
+    private long id;
 
     // сумма пополнения
     private double balance;

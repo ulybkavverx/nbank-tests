@@ -1,6 +1,7 @@
 package iteration2.api;
 
 import api.generators.RandomData;
+import api.models.CreateAccountResponse;
 import iteration1.api.BaseTest;
 import api.models.Account;
 import org.apache.http.HttpStatus;
@@ -30,51 +31,65 @@ public class DepositMoneyTest extends BaseTest {
         return userSteps.getAccounts().getFirst();
     }
 
+    // получение баланса счета по id
+    private double getAccountBalance(long accountId) {
+        return userSteps.getAccounts().stream()
+                .filter(it -> it.getId() == accountId)
+                .findFirst()
+                .orElseThrow()
+                .getBalance();
+    }
+
+    // проверка баланса с допустимой погрешностью
+    private void checkBalance(double actualBalance, double expectedBalance) {
+        softly.assertThat(actualBalance).isCloseTo(expectedBalance, within(0.001));
+    }
+
     // ТС 02-05: успешное пополнение обычной суммы
     @Test
     public void positiveDepositMoneyRandomAmountTest() {
-        // акк до пополнения
-        Account accountBefore = getCurrentAccount();
-        double balanceBefore = accountBefore.getBalance();
+        // создание нового счета
+        CreateAccountResponse account = userSteps.createAccount();
 
-        // генерация новой допустимой суммы
+        // генерация случайной допустимой суммы
         double amount = RandomData.randomNonBoundaryDepositAmount();
 
         // пополнение акка
         userSteps.depositMoney(
-                accountBefore.getId(),
+                account.getId(),
                 amount,
                 HttpStatus.SC_OK
         );
 
         // получение баланса после пополнения
-        double balanceAfter = getCurrentAccount().getBalance();
+        double balanceAfter = getAccountBalance(account.getId());
 
         // проверка, что баланс увеличился на сумму пополнения
-        softly.assertThat(balanceAfter).isCloseTo(balanceBefore + amount, within(0.001));
+        checkBalance(balanceAfter, amount);
     }
 
     // ТС 02-05: успешное пополнение допустимыми суммами
     @ParameterizedTest
     @ValueSource(doubles = {1, 0.01, 4999.99, 5000})
     public void positiveDepositMoneyBoundaryTest(double amount) {
+        // создание нового счета
+        CreateAccountResponse account = userSteps.createAccount();
 
-        // акк до пополнения
-        Account accountBefore = getCurrentAccount();
-        double balanceBefore = accountBefore.getBalance();
+        // проверка начального баланса
+        softly.assertThat(account.getBalance()).isEqualTo(0.0);
 
         // пополнение акка с ожид статусом 200
         userSteps.depositMoney(
-                accountBefore.getId(),
+                account.getId(),
                 amount,
                 HttpStatus.SC_OK
         );
 
         // получение баланса после пополнения
-        double balanceAfter = getCurrentAccount().getBalance();
+        double balanceAfter = getAccountBalance(account.getId());
 
         // проверка, что баланс увеличился на сумму пополнения
-        softly.assertThat(balanceAfter).isCloseTo(balanceBefore + amount, within(0.001));
+        checkBalance(balanceAfter, amount);
     }
 
     // TC 06–09: пополнение недопустимыми суммами

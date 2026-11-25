@@ -19,7 +19,7 @@ public class DepositMoneyTest extends BaseUiTest {
     @UserSession
     public void userCanSuccessfullyDepositMoneyTest() {
         // генерация депозита, без учета границ
-        double amount = RandomData.randomNonBoundaryDepositAmount();
+        double amount = RandomData.randomNonBoundaryDepositAmountRounded();
 
         // создание счета через api
         CreateAccountResponse account = SessionStorage.getSteps().createAccount();
